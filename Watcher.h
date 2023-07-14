@@ -112,7 +112,7 @@ public:
 	Details* reg(WatcherBase* that, const std::string& name)
 	{
 		constexpr size_t kBufSize = 4096;
-		vec.emplace_back(Priv{
+		vec.emplace_back(new Priv{
 			.w = that,
 			.count = 0,
 			.name = name,
@@ -120,14 +120,15 @@ public:
 			.watched = false,
 			.controlled = false,
 		});
-		vec.back().v.resize(kBufSize); // how do we include this above?
-		return (Details*)&vec.back();
+		vec.back()->v.resize(kBufSize); // how do we include this above?
+		return (Details*)vec.back();
 	}
 	void unreg(WatcherBase* that)
 	{
 		auto it = std::find_if(vec.begin(), vec.end(), [that](decltype(vec[0])& item){
-			return item.w == that;
+			return item->w == that;
 		});
+		delete *it;
 		vec.erase(it);
 		// TODO: unregister from GUI
 	}
@@ -188,10 +189,10 @@ private:
 
 	Priv* findPrivByName(const std::string& str) {
 		auto it = std::find_if(vec.begin(), vec.end(), [&str](decltype(vec[0])& item) {
-			return item.name == str;
+			return item->name == str;
 		});
 		if(it != vec.end())
-			return &*it;
+			return *it;
 		else
 			return nullptr;
 	}
@@ -204,11 +205,11 @@ private:
 			printf("Command cmd: %s\n\r", cmd.c_str());
 			if("list" == cmd)
 			{
-				printf("LIST\n");
 				// send watcher list JSON
 				JSONArray watchers;
-				for(auto& v : vec)
+				for(auto& item : vec)
 				{
+					auto& v = *item;
 					JSONObject watcher;
 					watcher[L"name"] = new JSONValue(JSON::s2ws(v.name));
 					watcher[L"watched"] = new JSONValue(v.watched);
@@ -228,8 +229,8 @@ private:
 				for(size_t n = 0; n < watchers.size(); ++n)
 				{
 					std::string str = JSONGetAsString(watchers[n]);
-					printf("'%s', ", str.c_str());
 					Priv* p = findPrivByName(str);
+					printf("%s {'%s', %p}, ", cmd.c_str(), str.c_str(), p);
 					if(p)
 					{
 						if("watch" == cmd)
@@ -265,7 +266,7 @@ private:
 		}
 		return false;
 	}
-	std::vector<Priv> vec;
+	std::vector<Priv*> vec;
 	Gui& gui;
 };
 
