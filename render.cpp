@@ -44,12 +44,12 @@ bool setup(BelaContext *context, void *userData)
 
 void render(BelaContext *context, void *userData)
 {
-	myvar = context->audioFramesElapsed;
-	myvar2 = context->audioFramesElapsed;
+	myvar = fmodf(context->audioFramesElapsed / (2 * context->audioSampleRate), 1);
+	myvar2 = fmodf(context->audioFramesElapsed / (2 * context->audioSampleRate), 1);
 	static size_t count = 0;
 	if(count++ >= context->audioSampleRate / context->audioFrames)
 	{
-		rt_printf("%.0f %.0f\n\r", float(myvar), float(myvar2));
+		rt_printf("%.5f %.5f\n\r", float(myvar), float(myvar2));
 		count = 0;
 	}
 
