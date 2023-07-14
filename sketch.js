@@ -145,7 +145,7 @@ let controlCallback = (data) => {
 
 function setup() {
 	//Create a canvas of dimensions given by current browser window
-	//createCanvas(windowWidth, windowHeight);
+	createCanvas(windowWidth, windowHeight);
 
 	//text font
 	textFont('Courier New');
@@ -154,8 +154,40 @@ function setup() {
 }
 setInterval(requestWatcherList, 500);
 
+let pastBuffer;
 function draw() {
-	watcherUpdateLayout();
 	//Read buffer with index 0 coming from render.cpp.
-	let counter = Bela.data.buffers[0];
+	let p = this;
+	var buffers = Bela.data.buffers;
+	if(!buffers.length)
+		return;
+
+	p.background(255)
+
+	p.strokeWeight(1);
+	var linVerScale = 1;
+	var linVerOff = 0;
+	let keys = Object.keys(wGuis);
+	for(let k in buffers)
+	{
+		if(!wGuis[keys[k]].watched.checked())
+			continue;
+		p.noFill();
+		var rem = k % 3;
+		p.stroke(p.color(255 * (0 == rem), 255 * (1 == rem), 255 * (2 == rem)));
+		p.beginShape();
+		let buf = buffers[k];
+		for (let i = 0; i < buf.length; i++) {
+			var y;
+			y = buf[i] * linVerScale + linVerOff;
+			x = i / (buf.length - 1);
+			p.vertex(p.windowWidth * x, p.windowHeight * (1 - y));
+		}
+		p.endShape();
+	}
+}
+
+function windowResized() {
+	watcherUpdateLayout();
+	resizeCanvas(windowWidth, windowHeight);
 }
