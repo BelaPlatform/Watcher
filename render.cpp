@@ -44,6 +44,7 @@ bool setup(BelaContext *context, void *userData)
 
 void render(BelaContext *context, void *userData)
 {
+	Bela_getDefaultWatcherManager()->tickBlock(context->audioFramesElapsed);
 	myvar = fmodf(context->audioFramesElapsed / (2 * context->audioSampleRate), 1);
 	myvar2 = fmodf(context->audioFramesElapsed / (2 * context->audioSampleRate), 1);
 	static size_t count = 0;

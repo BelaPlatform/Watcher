@@ -100,6 +100,9 @@ static inline double JSONGetNumber(JSONValue* el, const std::string& key)
 
 class WatcherManager
 {
+	uint64_t msgHeader = 0;
+	static constexpr size_t kMsgHeaderLength = sizeof(msgHeader);
+	static_assert(0 == kMsgHeaderLength % sizeof(float), "has to be multiple");
 public:
 	WatcherManager(Gui& gui) : gui(gui) {
 		gui.setControlDataCallback([this](JSONObject& json, void*) {
@@ -111,7 +114,7 @@ public:
 	typedef float T;
 	Details* reg(WatcherBase* that, const std::string& name)
 	{
-		constexpr size_t kBufSize = 4096;
+		constexpr size_t kBufSize = 4096 + kMsgHeaderLength / sizeof(float);
 		vec.emplace_back(new Priv{
 			.w = that,
 			.count = 0,
@@ -132,6 +135,10 @@ public:
 		vec.erase(it);
 		// TODO: unregister from GUI
 	}
+	void tickBlock(uint64_t frames)
+	{
+		msgHeader = frames;
+	}
 	// the relevant object is passed back here so that we don't have to waste
 	// time looking it up
 	template <typename T>
@@ -140,6 +147,11 @@ public:
 		Priv* p = reinterpret_cast<Priv*>(d);
 		if(p && p->watched)
 		{
+			if(0 == p->count)
+			{
+				memcpy(p->v.data(), &msgHeader, kMsgHeaderLength);
+				p->count += kMsgHeaderLength / sizeof(float);
+			}
 			((T*)p->v.data())[p->count++] = value;
 			if(p->count == p->v.size() / sizeof(T))
 			{
