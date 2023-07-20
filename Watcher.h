@@ -122,8 +122,11 @@ public:
 			.guiBufferId = gui.setBuffer(*typeid(T).name(), kBufSize),
 			.watched = false,
 			.controlled = false,
+			.logged = false,
 		});
-		vec.back()->v.resize(kBufSize); // how do we include this above?
+		Priv* p = vec.back();
+		p->v.resize(kBufSize); // how do we include this above?
+		setupLogger(p);
 		return (Details*)vec.back();
 	}
 	void unreg(WatcherBase* that)
@@ -145,7 +148,7 @@ public:
 	void notify(Details* d, const T& value)
 	{
 		Priv* p = reinterpret_cast<Priv*>(d);
-		if(p && p->watched)
+		if(p && (p->watched || p->logged))
 		{
 			if(0 == p->count)
 			{
@@ -169,9 +172,13 @@ private:
 		unsigned int guiBufferId;
 		bool watched;
 		bool controlled;
+		bool logged;
 	};
 	void send(Priv* p) {
-		gui.sendBuffer(p->guiBufferId, (float*)p->v.data(), p->count / sizeof(float));
+		if(p->watched)
+			gui.sendBuffer(p->guiBufferId, (float*)p->v.data(), p->count / sizeof(float));
+		if(p->logged)
+			; // TODO: do something
 	}
 	void startWatching(Priv* p) {
 		if(p->watched)
@@ -197,6 +204,19 @@ private:
 			return;
 		p->controlled = false;
 		p->w->localControl(true);
+	}
+	void startLogging(Priv* p) {
+		if(p->logged)
+			return;
+		p->logged = true;
+	}
+	void stopLogging(Priv* p) {
+		if(!p->logged)
+			return;
+		p->logged = false;
+	}
+	void setupLogger(Priv* p) {
+		// TODO: do something
 	}
 
 	Priv* findPrivByName(const std::string& str) {
@@ -226,6 +246,7 @@ private:
 					watcher[L"name"] = new JSONValue(JSON::s2ws(v.name));
 					watcher[L"watched"] = new JSONValue(v.watched);
 					watcher[L"controlled"] = new JSONValue(v.controlled);
+					watcher[L"logged"] = new JSONValue(v.logged);
 					watcher[L"value"] = new JSONValue(v.w->wmGet());
 					watchers.emplace_back(new JSONValue(watcher));
 				}
@@ -236,7 +257,7 @@ private:
 				JSONValue value(root);
 				gui.sendControl(&value);
 			}
-			if("watch" == cmd || "unwatch" == cmd || "control" == cmd || "uncontrol" == cmd) {
+			if("watch" == cmd || "unwatch" == cmd || "control" == cmd || "uncontrol" == cmd || "log" == cmd || "unlog" == cmd) {
 				const JSONArray& watchers = JSONGetArray(el, "watchers");
 				for(size_t n = 0; n < watchers.size(); ++n)
 				{
@@ -253,6 +274,10 @@ private:
 							startControlling(p);
 						else if("uncontrol" == cmd)
 							stopControlling(p);
+						else if("log" == cmd)
+							startLogging(p);
+						else if("unlog" == cmd)
+							stopLogging(p);
 					}
 				}
 				printf("\n");

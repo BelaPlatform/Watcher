@@ -47,6 +47,12 @@ function watcherControlSendToBela()
 			else
 				obj.cmd = "uncontrol";
 			break;
+		case "logged":
+			if(value)
+				obj.cmd = "log";
+			else
+				obj.cmd = "unlog";
+			break;
 		case "valueInput":
 			obj.cmd = "set";
 			obj.values = [value];
@@ -73,7 +79,7 @@ function watcherUpdateLayout() {
 	let controlsTop = 10;
 	let vSpace = 30;
 	let nameHspace = 80;
-	let hSpaces = [-nameHspace, 0, 40, 90, 240, ];
+	let hSpaces = [-nameHspace, 0, 40, 80, 130, 280, ];
 	let i = 0;
 	for(let k in wGuis) {
 		let w = wGuis[k];
@@ -90,6 +96,7 @@ function addWatcherToList(watcher) {
 		nameDisplay: createElement("div", watcher.name),
 		watched: createCheckbox("W", watcher.watched),
 		controlled: createCheckbox("C", watcher.controlled),
+		logged: createCheckbox("L", watcher.logged),
 		valueInput: createInput(""),
 		valueDisplay: createElement("div", watcher.value),
 	};
@@ -102,6 +109,7 @@ function addWatcherToList(watcher) {
 function removeWatcherFromList(watcher) {
 	wGuis[watcher].watched.remove();
 	wGuis[watcher].controlled.remove();
+	wGuis[watcher].logged.remove();
 	wGuis[watcher].valueInput.remove();
 	wGuis[watcher].valueDisplay.remove();
 	delete wGuis[watcher];
@@ -113,6 +121,7 @@ function updateWatcherGuis(w) {
 	let wgui = wGuis[w.name];
 	wgui.watched.checked(w.watched);
 	wgui.controlled.checked(w.controlled);
+	wgui.logged.checked(w.logged);
 	wgui.valueDisplay.elt.innerText = w.value
 	watcherGuiUpdatingFromBackend = false;
 }
