@@ -21,6 +21,7 @@ protected:
 #include <algorithm>
 #include <vector>
 #include <libraries/Gui/Gui.h>
+#include <libraries/WriteFile/WriteFile.h>
 
 static inline const JSONArray& JSONGetArray(JSONObject& root, const std::string& key)
 {
@@ -134,9 +135,10 @@ public:
 		auto it = std::find_if(vec.begin(), vec.end(), [that](decltype(vec[0])& item){
 			return item->w == that;
 		});
+		delete (*it)->logger;
+		// TODO: unregister from GUI
 		delete *it;
 		vec.erase(it);
-		// TODO: unregister from GUI
 	}
 	void tickBlock(uint64_t frames)
 	{
@@ -158,6 +160,13 @@ public:
 			((T*)p->v.data())[p->count++] = value;
 			if(p->count == p->v.size() / sizeof(T))
 			{
+				// TODO: in order to even out the CPU load,
+				// incoming data should be copied out of the
+				// audio thread one value at a time
+				// avoiding big copies like this one
+				// OTOH, we'll need to ensure only full blocks
+				// are sent so that we don't lose track of the
+				// header
 				send(p);
 				p->count = 0;
 			}
@@ -170,6 +179,7 @@ private:
 		size_t count;
 		std::string name;
 		unsigned int guiBufferId;
+		WriteFile* logger;
 		bool watched;
 		bool controlled;
 		bool logged;
@@ -177,8 +187,8 @@ private:
 	void send(Priv* p) {
 		if(p->watched)
 			gui.sendBuffer(p->guiBufferId, (float*)p->v.data(), p->count / sizeof(float));
-		if(p->logged)
-			; // TODO: do something
+		if(p->logged && p->logger)
+			p->logger->log((float*)p->v.data(), p->count / sizeof(float));
 	}
 	void startWatching(Priv* p) {
 		if(p->watched)
@@ -214,9 +224,30 @@ private:
 		if(!p->logged)
 			return;
 		p->logged = false;
+		delete p->logger;
+		p->logger = nullptr;
 	}
 	void setupLogger(Priv* p) {
-		// TODO: do something
+		p->logger = new WriteFile((p->name + ".bin").c_str(), false, false);
+		p->logger->setFileType(kBinary);
+		std::vector<uint8_t> header;
+		// string fields first, null-separated
+		for(auto c : std::string("watcher"))
+			header.push_back(c);
+		header.push_back(0);
+		for(auto c : p->name)
+			header.push_back(c);
+		header.push_back(0);
+		header.push_back('f');
+		header.push_back(0);
+		pid_t pid = getpid();
+		for(size_t n = 0; n < sizeof(pid); ++n)
+			header.push_back(((uint8_t*)&pid)[n]);
+		decltype(this) ptr = this;
+		for(size_t n = 0; n < sizeof(ptr); ++n)
+			header.push_back(((uint8_t*)&ptr)[n]);
+		header.resize(((header.size() + 3) / 4) * 4); // round to nearest multiple of 4
+		p->logger->log((float*)(header.data()), header.size() / sizeof(float));
 	}
 
 	Priv* findPrivByName(const std::string& str) {
@@ -255,7 +286,7 @@ private:
 				JSONObject root;
 				root[L"watcher"] = new JSONValue(watcher);
 				JSONValue value(root);
-				gui.sendControl(&value);
+				gui.sendControl(&value, WSServer::kThreadCallback);
 			}
 			if("watch" == cmd || "unwatch" == cmd || "control" == cmd || "uncontrol" == cmd || "log" == cmd || "unlog" == cmd) {
 				const JSONArray& watchers = JSONGetArray(el, "watchers");
@@ -307,7 +338,7 @@ private:
 	Gui& gui;
 };
 
-Gui gui; 
+Gui gui;
 WatcherManager* Bela_getDefaultWatcherManager()
 {
 	static WatcherManager defaultWatcherManager(gui);
