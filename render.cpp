@@ -1,30 +1,7 @@
-/*
- ____  _____ _        _    
-| __ )| ____| |      / \   
-|  _ \|  _| | |     / _ \  
-| |_) | |___| |___ / ___ \ 
-|____/|_____|_____/_/   \_\
-
-The platform for ultra-low latency audio and sensor processing
-
-http://bela.io
-
-A project of the Augmented Instruments Laboratory within the
-Centre for Digital Music at Queen Mary University of London.
-http://www.eecs.qmul.ac.uk/~andrewm
-
-(c) 2016 Augmented Instruments Laboratory: Andrew McPherson,
-	Astrid Bin, Liam Donovan, Christian Heinrichs, Robert Jack,
-	Giulio Moro, Laurel Pardue, Victor Zappi. All rights reserved.
-
-The Bela software is distributed under the GNU Lesser General Public License
-(LGPL 3.0), available here: https://www.gnu.org/licenses/lgpl-3.0.txt
-*/
-
 #include <Watcher.h>
 Watcher<float> myvar("myvar");
 Watcher<float> myvar2("myvar2");
-#if 1
+
 #include <Bela.h>
 #include <cmath>
 
@@ -34,23 +11,26 @@ float gInverseSampleRate;
 
 bool setup(BelaContext *context, void *userData)
 {
-	printf("%s\n", context->projectName);
 	gui.setup(context->projectName);
 	gInverseSampleRate = 1.0 / context->audioSampleRate;
 	gPhase = 0.0;
-
 	return true;
 }
 
 void render(BelaContext *context, void *userData)
 {
 	Bela_getDefaultWatcherManager()->tickBlock(context->audioFramesElapsed);
-	myvar = fmodf(context->audioFramesElapsed / (2 * context->audioSampleRate), 1);
-	myvar2 = fmodf(context->audioFramesElapsed / (2 * context->audioSampleRate), 1);
+	myvar = fmodf(context->audioFramesElapsed / (3 * context->audioSampleRate), 1);
+	myvar2 = fmodf(context->audioFramesElapsed / (3 * context->audioSampleRate), 1);
 	static size_t count = 0;
-	if(count++ >= context->audioSampleRate / context->audioFrames)
+	if(count++ >= context->audioSampleRate * 0.6 / context->audioFrames)
 	{
 		rt_printf("%.5f %.5f\n\r", float(myvar), float(myvar2));
+		static int pastC = -1;
+		int c = gui.numConnections();
+		if(c != pastC)
+			rt_printf("connected %d\n", c);
+		pastC = c;
 		count = 0;
 	}
 
@@ -61,12 +41,6 @@ void render(BelaContext *context, void *userData)
 			gPhase -= 2.0 * M_PI;
 
 		for(unsigned int channel = 0; channel < context->audioOutChannels; channel++) {
-			// Two equivalent ways to write this code
-
-			// The long way, using the buffers directly:
-			// context->audioOut[n * context->audioOutChannels + channel] = out;
-
-			// Or using the macros:
 			audioWrite(context, n, channel, out);
 		}
 	}
@@ -74,25 +48,4 @@ void render(BelaContext *context, void *userData)
 
 void cleanup(BelaContext *context, void *userData)
 {
-
 }
-
-
-/**
-\example sinetone/render.cpp
-
-Producing your first bleep!
----------------------------
-
-This sketch is the hello world of embedded interactive audio. Better known as bleep, it 
-produces a sine tone.
-
-The frequency of the sine tone is determined by a global variable, `gFrequency`. 
-The sine tone is produced by incrementing the phase of a sin function 
-on every audio frame.
-
-In render() you'll see a nested for loop structure. You'll see this in all Bela projects. 
-The first for loop cycles through 'audioFrames', the second through 'audioChannels' (in this case left 0 and right 1). 
-It is good to familiarise yourself with this structure as it's fundamental to producing sound with the system.
-*/
-#endif
