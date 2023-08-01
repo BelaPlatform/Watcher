@@ -115,7 +115,7 @@ public:
 	typedef float T;
 	Details* reg(WatcherBase* that, const std::string& name)
 	{
-		constexpr size_t kBufSize = 4096 + kMsgHeaderLength / sizeof(float);
+		constexpr size_t kBufSize = 4096 + kMsgHeaderLength;
 		vec.emplace_back(new Priv{
 			.w = that,
 			.count = 0,
