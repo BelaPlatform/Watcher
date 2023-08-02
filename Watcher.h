@@ -186,9 +186,9 @@ private:
 	};
 	void send(Priv* p) {
 		if(p->watched)
-			gui.sendBuffer(p->guiBufferId, (float*)p->v.data(), p->count / sizeof(float));
+			gui.sendBuffer(p->guiBufferId, (float*)p->v.data(), p->count);
 		if(p->logged && p->logger)
-			p->logger->log((float*)p->v.data(), p->count / sizeof(float));
+			p->logger->log((float*)p->v.data(), p->count);
 	}
 	void startWatching(Priv* p) {
 		if(p->watched)
