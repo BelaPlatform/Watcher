@@ -112,7 +112,7 @@ public:
 		});
 	};
 	class Details;
-	typedef float T;
+	template <typename T>
 	Details* reg(WatcherBase* that, const std::string& name)
 	{
 		constexpr size_t kBufSize = 4096 + kMsgHeaderLength;
@@ -167,7 +167,7 @@ public:
 				// OTOH, we'll need to ensure only full blocks
 				// are sent so that we don't lose track of the
 				// header
-				send(p);
+				send<T>(p);
 				p->count = 0;
 			}
 		}
@@ -184,9 +184,10 @@ private:
 		bool controlled;
 		bool logged;
 	};
+	template <typename T>
 	void send(Priv* p) {
 		if(p->watched)
-			gui.sendBuffer(p->guiBufferId, (float*)p->v.data(), p->count);
+			gui.sendBuffer(p->guiBufferId, (T*)p->v.data(), p->count);
 		if(p->logged && p->logger)
 			p->logger->log((float*)p->v.data(), p->count);
 	}
@@ -349,9 +350,11 @@ WatcherManager* Bela_getDefaultWatcherManager();
 template <typename T>
 class Watcher : public WatcherBase {
     static_assert(
-	std::is_same<T,int>::value
-	|| std::is_same<T,char>::value
+	std::is_same<T,char>::value
+	|| std::is_same<T,unsigned int>::value
+	|| std::is_same<T,int>::value
 	|| std::is_same<T,float>::value
+	|| std::is_same<T,double>::value
 	, "T is not of a supported type");
 public:
 	Watcher() = default;
@@ -359,7 +362,7 @@ public:
 		wm(wm)
 	{
 		if(wm)
-			d = wm->reg(this, name);
+			d = wm->reg<T>(this, name);
 	}
 	~Watcher() {
 		if(wm)
