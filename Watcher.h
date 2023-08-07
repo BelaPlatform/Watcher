@@ -155,7 +155,7 @@ public:
 			if(0 == p->count)
 			{
 				memcpy(p->v.data(), &msgHeader, kMsgHeaderLength);
-				p->count += kMsgHeaderLength / sizeof(float);
+				p->count += kMsgHeaderLength / sizeof(T);
 			}
 			((T*)p->v.data())[p->count++] = value;
 			if(p->count == p->v.size() / sizeof(T))
