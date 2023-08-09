@@ -98,6 +98,7 @@ function addWatcherToList(watcher) {
 		controlled: createCheckbox("C", watcher.controlled),
 		logged: createCheckbox("L", watcher.logged),
 		valueInput: createInput(""),
+		valueType: createElement("div", watcher.type),
 		valueDisplay: createElement("div", watcher.value),
 	};
 	for(let i in w)
@@ -111,6 +112,7 @@ function removeWatcherFromList(watcher) {
 	wGuis[watcher].controlled.remove();
 	wGuis[watcher].logged.remove();
 	wGuis[watcher].valueInput.remove();
+	wGuis[watcher].valueType.remove();
 	wGuis[watcher].valueDisplay.remove();
 	delete wGuis[watcher];
 }
@@ -122,7 +124,8 @@ function updateWatcherGuis(w) {
 	wgui.watched.checked(w.watched);
 	wgui.controlled.checked(w.controlled);
 	wgui.logged.checked(w.logged);
-	wgui.valueDisplay.elt.innerText = w.value
+	wgui.valueType.elt.innerText = w.type;
+	wgui.valueDisplay.elt.innerText = w.value;
 	watcherGuiUpdatingFromBackend = false;
 }
 

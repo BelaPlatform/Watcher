@@ -121,6 +121,7 @@ public:
 			.count = 0,
 			.name = name,
 			.guiBufferId = gui.setBuffer(*typeid(T).name(), kBufSize),
+			.type = typeid(T).name(),
 			.watched = false,
 			.controlled = false,
 			.logged = false,
@@ -180,6 +181,7 @@ private:
 		std::string name;
 		unsigned int guiBufferId;
 		WriteFile* logger;
+		const char* type;
 		bool watched;
 		bool controlled;
 		bool logged;
@@ -280,6 +282,7 @@ private:
 					watcher[L"controlled"] = new JSONValue(v.controlled);
 					watcher[L"logged"] = new JSONValue(v.logged);
 					watcher[L"value"] = new JSONValue(v.w->wmGet());
+					watcher[L"type"] = new JSONValue(JSON::s2ws(v.type));
 					watchers.emplace_back(new JSONValue(watcher));
 				}
 				JSONObject watcher;
