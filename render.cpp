@@ -1,6 +1,7 @@
 #include <Watcher.h>
-Watcher<float> myvar("myvar");
-Watcher<float> myvar2("myvar2");
+Watcher<double> myvar("myvar");
+Watcher<unsigned int> myvar2("myvar2");
+Watcher<int> myvar3("myvar3");
 
 #include <Bela.h>
 #include <cmath>
@@ -37,6 +38,7 @@ void render(BelaContext *context, void *userData)
 		
 		myvar = context->audioFramesElapsed + n;
 		myvar2 = context->audioFramesElapsed + n;
+		myvar3 = context->audioFramesElapsed + n;
 
 		float out = 0.8 * sinf(gPhase);
 		gPhase += 2.0 * M_PI * gFrequency * gInverseSampleRate;
