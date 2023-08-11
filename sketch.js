@@ -124,6 +124,7 @@ function updateWatcherGuis(w) {
 	wgui.watched.checked(w.watched);
 	wgui.controlled.checked(w.controlled);
 	wgui.logged.checked(w.logged);
+	wgui.logged.elt.title = w.logFileName;
 	wgui.valueType.elt.innerText = w.type;
 	wgui.valueDisplay.elt.innerText = w.value;
 	watcherGuiUpdatingFromBackend = false;
