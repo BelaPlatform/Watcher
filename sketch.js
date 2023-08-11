@@ -79,7 +79,7 @@ function watcherUpdateLayout() {
 	let controlsTop = 10;
 	let vSpace = 30;
 	let nameHspace = 80;
-	let hSpaces = [-nameHspace, 0, 40, 80, 130, 280, ];
+	let hSpaces = [-nameHspace, 0, 40, 80, 130, 280, 300 ];
 	let i = 0;
 	for(let k in wGuis) {
 		let w = wGuis[k];
