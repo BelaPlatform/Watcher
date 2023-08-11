@@ -1,6 +1,7 @@
 #include <vector>
 #include <typeinfo>
 #include <string>
+#include <new> // for std::bad_alloc
 class WatcherManager;
 class WatcherBase {
 public:
@@ -129,6 +130,8 @@ public:
 		});
 		Priv* p = vec.back();
 		p->v.resize(kBufSize); // how do we include this above?
+		if(((uintptr_t)p->v.data() + kMsgHeaderLength) & (sizeof(T) - 1))
+			throw(std::bad_alloc());
 		setupLogger(p);
 		return (Details*)vec.back();
 	}
