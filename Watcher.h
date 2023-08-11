@@ -184,6 +184,7 @@ private:
 		std::string name;
 		unsigned int guiBufferId;
 		WriteFile* logger;
+		std::string logFileName;
 		const char* type;
 		bool watched;
 		bool controlled;
@@ -236,6 +237,7 @@ private:
 	void setupLogger(Priv* p) {
 		p->logger = new WriteFile((p->name + ".bin").c_str(), false, false);
 		p->logger->setFileType(kBinary);
+		p->logFileName = p->logger->getName();
 		std::vector<uint8_t> header;
 		// string fields first, null-separated
 		for(auto c : std::string("watcher"))
@@ -285,6 +287,7 @@ private:
 					watcher[L"watched"] = new JSONValue(v.watched);
 					watcher[L"controlled"] = new JSONValue(v.controlled);
 					watcher[L"logged"] = new JSONValue(v.logged);
+					watcher[L"logFileName"] = new JSONValue(JSON::s2ws(v.logFileName));
 					watcher[L"value"] = new JSONValue(v.w->wmGet());
 					watcher[L"type"] = new JSONValue(JSON::s2ws(v.type));
 					watchers.emplace_back(new JSONValue(watcher));
