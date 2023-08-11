@@ -241,7 +241,8 @@ private:
 		for(auto c : p->name)
 			header.push_back(c);
 		header.push_back(0);
-		header.push_back('f');
+		for(auto c : std::string(p->type))
+			header.push_back(c);
 		header.push_back(0);
 		pid_t pid = getpid();
 		for(size_t n = 0; n < sizeof(pid); ++n)
