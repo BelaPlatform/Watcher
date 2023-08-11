@@ -125,6 +125,7 @@ public:
 			.watched = false,
 			.controlled = false,
 			.logged = false,
+			.hasLogged = false,
 		});
 		Priv* p = vec.back();
 		p->v.resize(kBufSize); // how do we include this above?
@@ -136,6 +137,8 @@ public:
 		auto it = std::find_if(vec.begin(), vec.end(), [that](decltype(vec[0])& item){
 			return item->w == that;
 		});
+		bool shouldDiscard = !(*it)->hasLogged;
+		(*it)->logger->cleanup(shouldDiscard);
 		delete (*it)->logger;
 		// TODO: unregister from GUI
 		delete *it;
@@ -185,6 +188,7 @@ private:
 		bool watched;
 		bool controlled;
 		bool logged;
+		bool hasLogged;
 	};
 	template <typename T>
 	void send(Priv* p) {
@@ -222,13 +226,12 @@ private:
 		if(p->logged)
 			return;
 		p->logged = true;
+		p->hasLogged = true;
 	}
 	void stopLogging(Priv* p) {
 		if(!p->logged)
 			return;
 		p->logged = false;
-		delete p->logger;
-		p->logger = nullptr;
 	}
 	void setupLogger(Priv* p) {
 		p->logger = new WriteFile((p->name + ".bin").c_str(), false, false);
