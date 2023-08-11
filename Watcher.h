@@ -102,9 +102,20 @@ static inline double JSONGetNumber(JSONValue* el, const std::string& key)
 
 class WatcherManager
 {
-	uint64_t msgHeader = 0;
-	static constexpr size_t kMsgHeaderLength = sizeof(msgHeader);
+	typedef uint64_t AbsTimestamp;
+	typedef uint32_t RelTimestamp;
+	AbsTimestamp timestamp = 0;
+	static constexpr size_t kMsgHeaderLength = sizeof(timestamp);
 	static_assert(0 == kMsgHeaderLength % sizeof(float), "has to be multiple");
+	static constexpr size_t kBufSize = 4096 + kMsgHeaderLength;
+	static size_t getRelTimestampsOffset(size_t dataSize)
+	{
+		size_t maxElements = (kBufSize - kMsgHeaderLength) / (dataSize + sizeof(RelTimestamp));
+		size_t offset = maxElements * dataSize + kMsgHeaderLength;
+		// round down to nearest aligned byte
+		offset = offset & ~(sizeof(RelTimestamp) - 1);
+		return offset;
+	}
 public:
 	WatcherManager(Gui& gui) : gui(gui) {
 		gui.setControlDataCallback([this](JSONObject& json, void*) {
@@ -113,16 +124,23 @@ public:
 		});
 	};
 	class Details;
+	enum TimestampMode {
+		kTimestampBlock,
+		kTimestampSample,
+	};
 	template <typename T>
 	Details* reg(WatcherBase* that, const std::string& name)
 	{
-		constexpr size_t kBufSize = 4096 + kMsgHeaderLength;
 		vec.emplace_back(new Priv{
 			.w = that,
 			.count = 0,
 			.name = name,
 			.guiBufferId = gui.setBuffer(*typeid(T).name(), kBufSize),
 			.type = typeid(T).name(),
+			.timestampMode = kTimestampBlock,
+			.firstTimestamp = 0,
+			.relTimestampsOffset = getRelTimestampsOffset(sizeof(T)),
+			.countRelTimestamps = 0,
 			.watched = false,
 			.controlled = false,
 			.logged = false,
@@ -132,6 +150,7 @@ public:
 		p->v.resize(kBufSize); // how do we include this above?
 		if(((uintptr_t)p->v.data() + kMsgHeaderLength) & (sizeof(T) - 1))
 			throw(std::bad_alloc());
+		p->maxCount = kTimestampBlock == p->timestampMode ? p->v.size() : p->relTimestampsOffset - (sizeof(T) - 1);
 		setupLogger(p);
 		return (Details*)vec.back();
 	}
@@ -147,9 +166,9 @@ public:
 		delete *it;
 		vec.erase(it);
 	}
-	void tickBlock(uint64_t frames)
+	void tickBlock(AbsTimestamp frames)
 	{
-		msgHeader = frames;
+		timestamp = frames;
 	}
 	// the relevant object is passed back here so that we don't have to waste
 	// time looking it up
@@ -161,11 +180,28 @@ public:
 		{
 			if(0 == p->count)
 			{
-				memcpy(p->v.data(), &msgHeader, kMsgHeaderLength);
-				p->count += kMsgHeaderLength / sizeof(T);
+				memcpy(p->v.data(), &timestamp, kMsgHeaderLength);
+				p->firstTimestamp = timestamp;
+				p->count += kMsgHeaderLength;
+				p->countRelTimestamps = p->relTimestampsOffset;
 			}
-			((T*)p->v.data())[p->count++] = value;
-			if(p->count == p->v.size() / sizeof(T))
+			*(T*)(p->v.data() + p->count) = value;
+			p->count += sizeof(value);
+			bool full = p->count >= p->maxCount;
+			if(kTimestampSample == p->timestampMode)
+			{
+				// we have two arrays: one of type T starting
+				// at kMsgHeaderLength and one of type
+				// RelTimestamp starting at relTimestampsOffset
+				RelTimestamp relTimestamp = timestamp - p->firstTimestamp;
+				*(RelTimestamp*)(p->v.data() + p->countRelTimestamps) = relTimestamp;
+				p->countRelTimestamps += sizeof(relTimestamp);
+				full |= (p->count >= p->relTimestampsOffset || p->countRelTimestamps >= p->v.size());
+			} else {
+				// only one array of type T starting at
+				// kMsgHeaderLength
+			}
+			if(full)
 			{
 				// TODO: in order to even out the CPU load,
 				// incoming data should be copied out of the
@@ -189,6 +225,11 @@ private:
 		WriteFile* logger;
 		std::string logFileName;
 		const char* type;
+		TimestampMode timestampMode;
+		AbsTimestamp firstTimestamp;
+		size_t relTimestampsOffset;
+		size_t countRelTimestamps;
+		size_t maxCount;
 		bool watched;
 		bool controlled;
 		bool logged;
@@ -196,10 +237,11 @@ private:
 	};
 	template <typename T>
 	void send(Priv* p) {
+		size_t size = p->v.size(); // TODO: customise this for smaller frames
 		if(p->watched)
-			gui.sendBuffer(p->guiBufferId, (T*)p->v.data(), p->count);
+			gui.sendBuffer(p->guiBufferId, (T*)p->v.data(), size / sizeof(T));
 		if(p->logged && p->logger)
-			p->logger->log((float*)p->v.data(), p->count * sizeof(T) / sizeof(float));
+			p->logger->log((float*)p->v.data(), size / sizeof(float));
 	}
 	void startWatching(Priv* p) {
 		if(p->watched)
