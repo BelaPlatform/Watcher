@@ -199,7 +199,7 @@ private:
 		if(p->watched)
 			gui.sendBuffer(p->guiBufferId, (T*)p->v.data(), p->count);
 		if(p->logged && p->logger)
-			p->logger->log((float*)p->v.data(), p->count);
+			p->logger->log((float*)p->v.data(), p->count * sizeof(T) / sizeof(float));
 	}
 	void startWatching(Priv* p) {
 		if(p->watched)
