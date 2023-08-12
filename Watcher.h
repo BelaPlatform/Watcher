@@ -129,7 +129,7 @@ public:
 		kTimestampSample,
 	};
 	template <typename T>
-	Details* reg(WatcherBase* that, const std::string& name)
+	Details* reg(WatcherBase* that, const std::string& name, TimestampMode timestampMode)
 	{
 		vec.emplace_back(new Priv{
 			.w = that,
@@ -137,7 +137,7 @@ public:
 			.name = name,
 			.guiBufferId = gui.setBuffer(*typeid(T).name(), kBufSize),
 			.type = typeid(T).name(),
-			.timestampMode = kTimestampBlock,
+			.timestampMode = timestampMode,
 			.firstTimestamp = 0,
 			.relTimestampsOffset = getRelTimestampsOffset(sizeof(T)),
 			.countRelTimestamps = 0,
@@ -413,11 +413,11 @@ class Watcher : public WatcherBase {
 	, "T is not of a supported type");
 public:
 	Watcher() = default;
-	Watcher(const std::string& name, WatcherManager* wm = Bela_getDefaultWatcherManager()) :
+	Watcher(const std::string& name, WatcherManager::TimestampMode timestampMode = WatcherManager::kTimestampBlock, WatcherManager* wm = Bela_getDefaultWatcherManager()) :
 		wm(wm)
 	{
 		if(wm)
-			d = wm->reg<T>(this, name);
+			d = wm->reg<T>(this, name, timestampMode);
 	}
 	~Watcher() {
 		if(wm)
