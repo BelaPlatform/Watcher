@@ -185,6 +185,34 @@ function draw() {
 	{
 		if(!wGuis[keys[k]].watched.checked())
 			continue;
+		let timestampBuf;
+		let type = Bela.data.buffers[k].type;
+		switch(type)
+		{
+			case 'c':
+				// absurb reverse mapping of an absurd fwd mapping
+				let intArr = buffers[k].slice(0, 8).map((e) => {
+					return e.charCodeAt(0);
+				});
+				timestampBuf = new Uint8Array(intArr);
+				break;
+			case 'j': // unsigned int
+				timestampBuf = new Uint32Array(buffers[k].slice(0, 2))
+				break;
+			case 'i': // int
+				timestampBuf = new Int32Array(buffers[k].slice(0, 2))
+				break;
+			case 'f': // float
+				timestampBuf = new Float32Array(buffers[k].slice(0, 2));
+				break;
+			case 'd':
+				timestampBuf = new Float64Array(buffers[k].slice(0, 1));
+				break;
+			default:
+				console.log("Unknown buffer type ", type);
+		}
+		let timestampUint32 = new Uint32Array(timestampBuf.buffer);
+		let timestamp = timestampUint32[0] * (1 << 32) + timestampUint32[1];
 		p.noFill();
 		var rem = k % 3;
 		p.stroke(p.color(255 * (0 == rem), 255 * (1 == rem), 255 * (2 == rem)));
