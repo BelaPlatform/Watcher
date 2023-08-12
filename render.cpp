@@ -20,7 +20,6 @@ bool setup(BelaContext *context, void *userData)
 
 void render(BelaContext *context, void *userData)
 {
-	Bela_getDefaultWatcherManager()->tickBlock(context->audioFramesElapsed);
 
 	static size_t count = 0;
 	if(count++ >= context->audioSampleRate * 0.6 / context->audioFrames)
@@ -35,7 +34,7 @@ void render(BelaContext *context, void *userData)
 	}
 
 	for(unsigned int n = 0; n < context->audioFrames; n++) {
-		
+		Bela_getDefaultWatcherManager()->tick(context->audioFramesElapsed + n);
 		myvar = context->audioFramesElapsed + n;
 		myvar2 = context->audioFramesElapsed + n;
 		myvar3 = context->audioFramesElapsed + n;

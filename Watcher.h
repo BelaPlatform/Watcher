@@ -166,7 +166,7 @@ public:
 		delete *it;
 		vec.erase(it);
 	}
-	void tickBlock(AbsTimestamp frames)
+	void tick(AbsTimestamp frames)
 	{
 		timestamp = frames;
 	}
