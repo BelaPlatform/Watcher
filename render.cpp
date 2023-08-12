@@ -1,7 +1,7 @@
 #include <Watcher.h>
 Watcher<double> myvar("myvar");
 Watcher<unsigned int> myvar2("myvar2");
-Watcher<int> myvar3("myvar3");
+Watcher<unsigned int> myvar3("myvar3", WatcherManager::kTimestampSample);
 
 #include <Bela.h>
 #include <cmath>
@@ -34,10 +34,13 @@ void render(BelaContext *context, void *userData)
 	}
 
 	for(unsigned int n = 0; n < context->audioFrames; n++) {
-		Bela_getDefaultWatcherManager()->tick(context->audioFramesElapsed + n);
-		myvar = context->audioFramesElapsed + n;
-		myvar2 = context->audioFramesElapsed + n;
-		myvar3 = context->audioFramesElapsed + n;
+		uint64_t frames = context->audioFramesElapsed + n;
+		Bela_getDefaultWatcherManager()->tick(frames);
+		if(frames % 10 == 0) // log a dense variable sparsely: bad
+			myvar = frames;
+		myvar2 = frames; // log a dense variable densely: good
+		if(frames % 12 == 0) // log a sparse variable sparsely: good
+			myvar3 = frames;
 
 		float out = 0.8 * sinf(gPhase);
 		gPhase += 2.0 * M_PI * gFrequency * gInverseSampleRate;
