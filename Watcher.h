@@ -335,6 +335,7 @@ private:
 					watcher[L"logFileName"] = new JSONValue(JSON::s2ws(v.logFileName));
 					watcher[L"value"] = new JSONValue(v.w->wmGet());
 					watcher[L"type"] = new JSONValue(JSON::s2ws(v.type));
+					watcher[L"timestampMode"] = new JSONValue(v.timestampMode);
 					watchers.emplace_back(new JSONValue(watcher));
 				}
 				JSONObject watcher;
