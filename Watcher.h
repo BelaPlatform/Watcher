@@ -226,7 +226,10 @@ public:
 
 				send<T>(p);
 				if(kLoggedStopping == p->logged)
+				{
+					p->logger->requestFlush();
 					p->logged = kLoggedNo;
+				}
 				p->count = 0;
 			}
 		}
