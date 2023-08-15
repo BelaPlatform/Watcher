@@ -143,7 +143,7 @@ public:
 			.countRelTimestamps = 0,
 			.watched = false,
 			.controlled = false,
-			.logged = false,
+			.logged = kLoggedNo,
 			.hasLogged = false,
 		});
 		Priv* p = vec.back();
@@ -176,7 +176,7 @@ public:
 	void notify(Details* d, const T& value)
 	{
 		Priv* p = reinterpret_cast<Priv*>(d);
-		if(p && (p->watched || p->logged))
+		if(p && (p->watched || (kLoggedNo != p->logged)))
 		{
 			if(0 == p->count)
 			{
@@ -201,8 +201,21 @@ public:
 				// only one array of type T starting at
 				// kMsgHeaderLength
 			}
-			if(full)
+			if(full || kLoggedStopping == p->logged)
 			{
+				if(kLoggedStopping == p->logged && !full)
+				{
+					// when logging stops, we need to fill
+					// up all the remaining space with zeros
+					// TODO: remove this when we support
+					// variable-length blocks
+					if(kTimestampSample == p->timestampMode)
+					{
+						memset(p->v.data() + p->count, 0, p->relTimestampsOffset - p->count);
+						memset(p->v.data() + p->countRelTimestamps, 0, p->v.size() - p->relTimestampsOffset);
+					} else
+						memset(p->v.data() + p->count, 0, p->v.size() - p->count);
+				}
 				// TODO: in order to even out the CPU load,
 				// incoming data should be copied out of the
 				// audio thread one value at a time
@@ -210,12 +223,20 @@ public:
 				// OTOH, we'll need to ensure only full blocks
 				// are sent so that we don't lose track of the
 				// header
+
 				send<T>(p);
+				if(kLoggedStopping == p->logged)
+					p->logged = kLoggedNo;
 				p->count = 0;
 			}
 		}
 	}
 private:
+	enum Logged {
+		kLoggedNo,
+		kLoggedYes,
+		kLoggedStopping,
+	};
 	struct Priv {
 		WatcherBase* w;
 		std::vector<unsigned char> v;
@@ -232,7 +253,7 @@ private:
 		size_t maxCount;
 		bool watched;
 		bool controlled;
-		bool logged;
+		Logged logged;
 		bool hasLogged;
 	};
 	template <typename T>
@@ -240,7 +261,7 @@ private:
 		size_t size = p->v.size(); // TODO: customise this for smaller frames
 		if(p->watched)
 			gui.sendBuffer(p->guiBufferId, (T*)p->v.data(), size / sizeof(T));
-		if(p->logged && p->logger)
+		if((p->logged != kLoggedNo) && p->logger)
 			p->logger->log((float*)p->v.data(), size / sizeof(float));
 	}
 	void startWatching(Priv* p) {
@@ -269,15 +290,15 @@ private:
 		p->w->localControl(true);
 	}
 	void startLogging(Priv* p) {
-		if(p->logged)
+		if(kLoggedNo != p->logged)
 			return;
-		p->logged = true;
+		p->logged = kLoggedYes;
 		p->hasLogged = true;
 	}
 	void stopLogging(Priv* p) {
-		if(!p->logged)
+		if(kLoggedNo == p->logged)
 			return;
-		p->logged = false;
+		p->logged = kLoggedStopping;
 	}
 	void setupLogger(Priv* p) {
 		p->logger = new WriteFile((p->name + ".bin").c_str(), false, false);
