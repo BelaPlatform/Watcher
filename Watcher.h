@@ -212,7 +212,7 @@ public:
 					if(kTimestampSample == p->timestampMode)
 					{
 						memset(p->v.data() + p->count, 0, p->relTimestampsOffset - p->count);
-						memset(p->v.data() + p->countRelTimestamps, 0, p->v.size() - p->relTimestampsOffset);
+						memset(p->v.data() + p->countRelTimestamps, 0, p->v.size() - p->countRelTimestamps);
 					} else
 						memset(p->v.data() + p->count, 0, p->v.size() - p->count);
 				}
