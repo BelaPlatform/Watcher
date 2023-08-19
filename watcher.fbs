@@ -1,0 +1,12 @@
+namespace Bela.Watcher;
+
+table DataMsg {
+  var_id:uint16;
+  type_id:string;
+  timestamp:uint64;
+  payload_data_size:uint32;
+  payload_timestamp_size:uint32 = 0;
+  alignment:uint8 = 4;
+}
+
+root_type DataMsg;

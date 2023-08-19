@@ -100,18 +100,18 @@ static inline double JSONGetNumber(JSONValue* el, const std::string& key)
 	return _JSONGetNumber(el, wkey);
 }
 
+#include "watcher_generated.h"
+using namespace Bela::Watcher;
 class WatcherManager
 {
 	typedef uint64_t AbsTimestamp;
 	typedef uint32_t RelTimestamp;
 	AbsTimestamp timestamp = 0;
-	static constexpr size_t kMsgHeaderLength = sizeof(timestamp);
-	static_assert(0 == kMsgHeaderLength % sizeof(float), "has to be multiple");
-	static constexpr size_t kBufSize = 4096 + kMsgHeaderLength;
+	static constexpr size_t kBufSize = 4096;
 	static size_t getRelTimestampsOffset(size_t dataSize)
 	{
-		size_t maxElements = (kBufSize - kMsgHeaderLength) / (dataSize + sizeof(RelTimestamp));
-		size_t offset = maxElements * dataSize + kMsgHeaderLength;
+		size_t maxElements = kBufSize / (dataSize + sizeof(RelTimestamp));
+		size_t offset = maxElements * dataSize;
 		// round down to nearest aligned byte
 		offset = offset & ~(sizeof(RelTimestamp) - 1);
 		return offset;
@@ -148,7 +148,7 @@ public:
 		});
 		Priv* p = vec.back();
 		p->v.resize(kBufSize); // how do we include this above?
-		if(((uintptr_t)p->v.data() + kMsgHeaderLength) & (sizeof(T) - 1))
+		if(((uintptr_t)p->v.data()) & (sizeof(T) - 1))
 			throw(std::bad_alloc());
 		p->maxCount = kTimestampBlock == p->timestampMode ? p->v.size() : p->relTimestampsOffset - (sizeof(T) - 1);
 		setupLogger(p);
@@ -180,9 +180,7 @@ public:
 		{
 			if(0 == p->count)
 			{
-				memcpy(p->v.data(), &timestamp, kMsgHeaderLength);
 				p->firstTimestamp = timestamp;
-				p->count += kMsgHeaderLength;
 				p->countRelTimestamps = p->relTimestampsOffset;
 			}
 			*(T*)(p->v.data() + p->count) = value;
@@ -191,18 +189,19 @@ public:
 			if(kTimestampSample == p->timestampMode)
 			{
 				// we have two arrays: one of type T starting
-				// at kMsgHeaderLength and one of type
+				// at 0 and one of type
 				// RelTimestamp starting at relTimestampsOffset
 				RelTimestamp relTimestamp = timestamp - p->firstTimestamp;
 				*(RelTimestamp*)(p->v.data() + p->countRelTimestamps) = relTimestamp;
 				p->countRelTimestamps += sizeof(relTimestamp);
 				full |= (p->count >= p->relTimestampsOffset || p->countRelTimestamps >= p->v.size());
 			} else {
-				// only one array of type T starting at
-				// kMsgHeaderLength
+				// only one array of type T starting at 0
+				// nothing to do
 			}
 			if(full || kLoggedStopping == p->logged)
 			{
+#if 0
 				if(kLoggedStopping == p->logged && !full)
 				{
 					// when logging stops, we need to fill
@@ -216,6 +215,7 @@ public:
 					} else
 						memset(p->v.data() + p->count, 0, p->v.size() - p->count);
 				}
+#endif
 				// TODO: in order to even out the CPU load,
 				// incoming data should be copied out of the
 				// audio thread one value at a time
@@ -262,10 +262,41 @@ private:
 	template <typename T>
 	void send(Priv* p) {
 		size_t size = p->v.size(); // TODO: customise this for smaller frames
-		if(p->watched)
-			gui.sendBuffer(p->guiBufferId, (T*)p->v.data(), size / sizeof(T));
-		if((p->logged != kLoggedNo) && p->logger)
-			p->logger->log((float*)p->v.data(), size / sizeof(float));
+		if(p->watched || p->logged != kLoggedNo)
+		{
+			auto type_id = builder.CreateString(typeid(T).name());
+			DataMsgBuilder mb(builder);
+			mb.add_var_id(p->guiBufferId);
+			mb.add_type_id(type_id);
+			mb.add_timestamp(p->firstTimestamp);
+			mb.add_payload_data_size(p->count);
+			mb.add_payload_timestamp_size(p->countRelTimestamps - p->relTimestampsOffset);
+			auto offset = mb.Finish();
+			builder.Finish(offset);
+			const uint8_t* dataMsg = builder.GetBufferPointer();
+			size_t dataMsgSize = builder.GetSize();
+			constexpr size_t kAlignment = 8;
+			// TODO: verify that the alignment matches
+			static_assert(0 == (kAlignment % sizeof(float)), "Aligment is insufficient");
+			// make it slightly larger if needed so that it is aligned.
+			// any extra bytes are safe to access here but should
+			// be ignored on the receiver side
+			size_t rem = (dataMsgSize % kAlignment);
+			if(rem)
+				dataMsgSize = dataMsgSize + kAlignment - rem;
+			if(p->watched)
+			{
+				gui.sendBuffer(p->guiBufferId, dataMsg, dataMsgSize);
+				gui.sendBuffer(p->guiBufferId, (T*)p->v.data(), size / sizeof(T));
+			}
+			if((p->logged != kLoggedNo) && p->logger)
+			{
+				p->logger->log((float*)dataMsg, dataMsgSize / sizeof(float));
+				p->logger->log((float*)p->v.data(), size / sizeof(float));
+			}
+			// reset builder's state so it can be used again
+			builder.Clear();
+		}
 	}
 	void startWatching(Priv* p) {
 		if(p->watched)
@@ -417,6 +448,7 @@ private:
 	}
 	std::vector<Priv*> vec;
 	Gui& gui;
+	flatbuffers::FlatBufferBuilder builder;
 };
 
 Gui gui;
