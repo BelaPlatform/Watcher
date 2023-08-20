@@ -109,6 +109,7 @@ class WatcherManager
 	AbsTimestamp timestamp = 0;
 	static constexpr size_t kBufSize = 4096;
 	static constexpr size_t kAlignment = sizeof(RelTimestamp);
+	// TODO: verify that kAlignment matches DataMsg::Alignment()
 	static_assert(!(kAlignment & (kAlignment - 1)), "kAlignment is not a power of 2");
 	static size_t alignUp(size_t sz)
 	{
@@ -271,38 +272,39 @@ private:
 	};
 	template <typename T>
 	void send(Priv* p) {
-		size_t size = p->v.size(); // TODO: customise this for smaller frames
 		if(p->watched || p->logged != kLoggedNo)
 		{
+			size_t payloadDataSize = alignUp(p->count);
+			size_t payloadTimestampSize = alignUp(p->countRelTimestamps - p->relTimestampsOffset);
 			auto type_id = builder.CreateString(typeid(T).name());
 			DataMsgBuilder mb(builder);
 			mb.add_var_id(p->guiBufferId);
 			mb.add_type_id(type_id);
 			mb.add_timestamp(p->firstTimestamp);
-			mb.add_payload_data_size(p->count);
-			mb.add_payload_timestamp_size(p->countRelTimestamps - p->relTimestampsOffset);
+			mb.add_payload_data_size(payloadDataSize);
+			mb.add_payload_timestamp_size(payloadTimestampSize);
 			auto offset = mb.Finish();
-			builder.Finish(offset);
+			builder.FinishSizePrefixed(offset);
 			const uint8_t* dataMsg = builder.GetBufferPointer();
 			size_t dataMsgSize = builder.GetSize();
-			constexpr size_t kAlignment = 8;
-			// TODO: verify that the alignment matches
-			static_assert(0 == (kAlignment % sizeof(float)), "Aligment is insufficient");
-			// make it slightly larger if needed so that it is aligned.
-			// any extra bytes are safe to access here but should
+			// make the dataMsg buffer slightly larger if needed so
+			// that it is aligned.
+			// Any extra bytes are safe to access here but should
 			// be ignored on the receiver side
-			size_t rem = (dataMsgSize % kAlignment);
-			if(rem)
-				dataMsgSize = dataMsgSize + kAlignment - rem;
+			// TODO: is it actually true that it is safe to access them?
+			dataMsgSize = alignUp(dataMsgSize);
 			if(p->watched)
 			{
 				gui.sendBuffer(p->guiBufferId, dataMsg, dataMsgSize);
-				gui.sendBuffer(p->guiBufferId, (T*)p->v.data(), size / sizeof(T));
+				gui.sendBuffer(p->guiBufferId, (T*)p->v.data(), payloadDataSize / sizeof(T));
+				if(payloadTimestampSize)
+					gui.sendBuffer(p->guiBufferId, (T*)(p->v.data() + p->relTimestampsOffset), payloadTimestampSize / sizeof(T));
 			}
 			if((p->logged != kLoggedNo) && p->logger)
 			{
 				p->logger->log((float*)dataMsg, dataMsgSize / sizeof(float));
-				p->logger->log((float*)p->v.data(), size / sizeof(float));
+				p->logger->log((float*)p->v.data(), payloadDataSize / sizeof(float));
+				p->logger->log((float*)(p->v.data() + p->relTimestampsOffset), payloadTimestampSize / sizeof(float));
 			}
 			// reset builder's state so it can be used again
 			builder.Clear();
