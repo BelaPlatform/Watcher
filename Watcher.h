@@ -278,11 +278,14 @@ private:
 			size_t payloadTimestampSize = alignUp(p->countRelTimestamps - p->relTimestampsOffset);
 			auto type_id = builder.CreateString(typeid(T).name());
 			DataMsgBuilder mb(builder);
-			mb.add_var_id(p->guiBufferId);
 			mb.add_type_id(type_id);
-			mb.add_timestamp(p->firstTimestamp);
-			mb.add_payload_data_size(payloadDataSize);
-			mb.add_payload_timestamp_size(payloadTimestampSize);
+			DataMsgStruct str = {
+				p->guiBufferId,
+				p->firstTimestamp,
+				payloadDataSize,
+				payloadTimestampSize
+			};
+			mb.add_msg(&str);
 			auto offset = mb.Finish();
 			builder.FinishSizePrefixed(offset);
 			const uint8_t* dataMsg = builder.GetBufferPointer();
