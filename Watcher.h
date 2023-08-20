@@ -108,12 +108,22 @@ class WatcherManager
 	typedef uint32_t RelTimestamp;
 	AbsTimestamp timestamp = 0;
 	static constexpr size_t kBufSize = 4096;
+	static constexpr size_t kAlignment = sizeof(RelTimestamp);
+	static_assert(!(kAlignment & (kAlignment - 1)), "kAlignment is not a power of 2");
+	static size_t alignUp(size_t sz)
+	{
+		return alignDown(sz + kAlignment - 1);
+	}
+	static size_t alignDown(size_t sz)
+	{
+		return (sz) & ~(kAlignment - 1);
+	}
 	static size_t getRelTimestampsOffset(size_t dataSize)
 	{
 		size_t maxElements = kBufSize / (dataSize + sizeof(RelTimestamp));
 		size_t offset = maxElements * dataSize;
 		// round down to nearest aligned byte
-		offset = offset & ~(sizeof(RelTimestamp) - 1);
+		offset = alignDown(offset);
 		return offset;
 	}
 public:
@@ -355,7 +365,7 @@ private:
 		decltype(this) ptr = this;
 		for(size_t n = 0; n < sizeof(ptr); ++n)
 			header.push_back(((uint8_t*)&ptr)[n]);
-		header.resize(((header.size() + 3) / 4) * 4); // round to nearest multiple of 4
+		header.resize(alignUp(header.size())); // round so that it is aligned
 		p->logger->log((float*)(header.data()), header.size() / sizeof(float));
 	}
 
