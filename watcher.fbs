@@ -1,15 +1,11 @@
 namespace Bela.Watcher;
 
-struct DataMsgStruct {
-  var_id:uint32;
+table DataMsg {
+  var_id:uint16;
+  type_id:string;
   timestamp:uint64;
   payload_data_size:uint32;
-  payload_timestamp_size:uint32;
-}
-
-table DataMsg {
-  msg:DataMsgStruct;
-  type_id:string;
+  payload_timestamp_size:uint32 = 0;
   alignment:uint8 = 4;
 }
 

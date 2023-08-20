@@ -14,15 +14,14 @@ while offset < len(buf):
 #if 1:
     msgSize = flatbuffers.util.GetSizePrefix(buf, offset)
     (buf, offset) = flatbuffers.util.RemoveSizePrefix(buf, offset)
-    msgData = DataMsg.DataMsg.GetRootAs(buf, offset)
-    msg = msgData.Msg()
+    msg = DataMsg.DataMsg.GetRootAs(buf, offset)
     timestamp = msg.Timestamp()
-    typeId = msgData.TypeId().decode("utf-8")
+    typeId = msg.TypeId().decode("utf-8")
     if("j" == typeId) :
         typeId = "I"
         # TODO: add more conversions here
     timestampType = "SPARSE" if msg.PayloadTimestampSize() else "DENSE"
-    print(f"{timestampType} offset: {offset} size: {msgSize}, timestamp: {timestamp}({timestamp-oldTimestamp}) varId: {msg.VarId()}, type_id: {typeId}({msgData.TypeId()}), payloadSize: {msg.PayloadDataSize()}, payloadTimestampSize: {msg.PayloadTimestampSize()}")
+    print(f"{timestampType} offset: {offset} size: {msgSize}, timestamp: {timestamp}({timestamp-oldTimestamp}) varId: {msg.VarId()}, type_id: {typeId}({msg.TypeId()}), payloadSize: {msg.PayloadDataSize()}, payloadTimestampSize: {msg.PayloadTimestampSize()}")
     oldTimestamp = msg.Timestamp()
     offset += msgSize
     data = array.array(typeId)
