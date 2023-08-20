@@ -10,3 +10,12 @@ table DataMsg {
 }
 
 root_type DataMsg;
+
+table FileHeader {
+  what:string;
+  var_name:string;
+  pid:uint64;
+  ptr:uint64;
+}
+
+root_type FileHeader;

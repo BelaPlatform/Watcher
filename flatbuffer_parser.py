@@ -1,13 +1,19 @@
 import sys
 sys.path.append("/root/flatbuffers/python/")
 import Bela.Watcher.DataMsg as DataMsg
+import Bela.Watcher.FileHeader as FileHeader
 import flatbuffers
 import array
 
-buf = open('myvar3.bin', 'rb').read()
+filename = 'myvar3.bin'
+buf = open(filename, 'rb').read()
 buf = bytearray(buf)
-offset = 28
-
+offset = 0
+fileHeaderSize = flatbuffers.util.GetSizePrefix(buf, offset)
+(buf, offset) = flatbuffers.util.RemoveSizePrefix(buf, offset)
+fileHeader = FileHeader.FileHeader.GetRootAs(buf, offset)
+print(f"File {filename}: {fileHeader.What()}, var_name: {fileHeader.VarName()}, pid: {fileHeader.Pid()}, ptr: {fileHeader.Ptr():#010x}")
+offset += fileHeaderSize
 # for each buffer
 oldTimestamp = 0;
 while offset < len(buf):

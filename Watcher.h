@@ -347,28 +347,27 @@ private:
 		p->logged = kLoggedStopping;
 	}
 	void setupLogger(Priv* p) {
-		p->logger = new WriteFile((p->name + ".bin").c_str(), false, false);
+		p->logger = new WriteFile((p->name + ".bin").c_str(), true, false);
 		p->logger->setFileType(kBinary);
 		p->logFileName = p->logger->getName();
-		std::vector<uint8_t> header;
 		// string fields first, null-separated
-		for(auto c : std::string("watcher"))
-			header.push_back(c);
-		header.push_back(0);
-		for(auto c : p->name)
-			header.push_back(c);
-		header.push_back(0);
-		for(auto c : std::string(p->type))
-			header.push_back(c);
-		header.push_back(0);
-		pid_t pid = getpid();
-		for(size_t n = 0; n < sizeof(pid); ++n)
-			header.push_back(((uint8_t*)&pid)[n]);
-		decltype(this) ptr = this;
-		for(size_t n = 0; n < sizeof(ptr); ++n)
-			header.push_back(((uint8_t*)&ptr)[n]);
-		header.resize(alignUp(header.size())); // round so that it is aligned
-		p->logger->log((float*)(header.data()), header.size() / sizeof(float));
+		auto what = builder.CreateString("watcher");
+		auto var_name = builder.CreateString(p->name);
+		FileHeaderBuilder fhb(builder);
+		fhb.add_what(what);
+		fhb.add_var_name(var_name);
+		fhb.add_pid(uint64_t(getpid()));
+		fhb.add_ptr(uintptr_t(this));
+		auto offset = fhb.Finish();
+		builder.FinishSizePrefixed(offset);
+		const uint8_t* header = builder.GetBufferPointer();
+		size_t headerSize = builder.GetSize();
+		// TODO: can we actually access beyond the end of buffer if the
+		// below results in additional bytes being read?
+		headerSize = alignUp(headerSize);
+		printf("HEADER: %u\n", headerSize);
+		p->logger->log((float*)(header), headerSize / sizeof(float));
+		builder.Clear();
 	}
 
 	Priv* findPrivByName(const std::string& str) {
