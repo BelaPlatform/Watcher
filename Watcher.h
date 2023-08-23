@@ -2,6 +2,8 @@
 #include <typeinfo>
 #include <string>
 #include <new> // for std::bad_alloc
+#include <unistd.h>
+
 class WatcherManager;
 class WatcherBase {
 public:
