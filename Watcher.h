@@ -107,6 +107,8 @@ static inline double JSONGetNumber(JSONValue* el, const std::string& key)
 
 class WatcherManager
 {
+	static constexpr uint32_t kMonitorDont = 0;
+	static constexpr uint32_t kMonitorChange = 1 << 31;
 	typedef uint64_t AbsTimestamp;
 	typedef uint32_t RelTimestamp;
 	AbsTimestamp timestamp = 0;
@@ -146,6 +148,7 @@ public:
 			.firstTimestamp = 0,
 			.relTimestampsOffset = getRelTimestampsOffset(sizeof(T)),
 			.countRelTimestamps = 0,
+			.monitoring = kMonitorDont,
 			.watched = false,
 			.controlled = false,
 			.logged = kLoggedNo,
@@ -181,7 +184,34 @@ public:
 	void notify(Details* d, const T& value)
 	{
 		Priv* p = reinterpret_cast<Priv*>(d);
-		if(p && (p->watched || (kLoggedNo != p->logged)))
+		if(!p)
+			return;
+		if(kMonitorDont != p->monitoring)
+		{
+			if(p->monitoring & kMonitorChange)
+			{
+				p->monitoring &= ~kMonitorChange; // reset flag
+				if(p->monitoring) {
+					// throttle requests that are too fast
+					p->monitoring = std::max(p->monitoring, 500u);
+					p->monitoringNext = timestamp;
+				} else
+					p->monitoringNext = -1;
+			}
+			if(timestamp >= p->monitoringNext)
+			{
+				// big enough for the timestamp and one value
+				// and possibly some padding bytes at the end
+				// (though in practice there won't be any when
+				// sizeof(T) <= kMsgHeaderLength)
+				uint8_t data[((kMsgHeaderLength + sizeof(value) + sizeof(T) - 1) / sizeof(T)) * sizeof(T)];
+				memcpy(data, &timestamp, kMsgHeaderLength);
+				memcpy(data + kMsgHeaderLength, &value, sizeof(value));
+				gui.sendBuffer(p->guiBufferId, (T*)data, sizeof(data) / sizeof(T));
+				p->monitoringNext = timestamp + p->monitoring;
+			}
+		}
+		if(p->watched || kLoggedNo != p->logged)
 		{
 			if(0 == p->count)
 			{
@@ -259,6 +289,8 @@ private:
 		size_t relTimestampsOffset;
 		size_t countRelTimestamps;
 		size_t maxCount;
+		uint32_t monitoring;
+		uint64_t monitoringNext;
 		bool watched;
 		bool controlled;
 		Logged logged;
@@ -307,6 +339,9 @@ private:
 		if(kLoggedNo == p->logged)
 			return;
 		p->logged = kLoggedStopping;
+	}
+	void setMonitoring(Priv* p, size_t period) {
+		p->monitoring = (kMonitorChange | period);
 	}
 	void setupLogger(Priv* p) {
 		p->logger = new WriteFile((p->name + ".bin").c_str(), false, false);
@@ -361,6 +396,7 @@ private:
 					watcher[L"watched"] = new JSONValue(v.watched);
 					watcher[L"controlled"] = new JSONValue(v.controlled);
 					watcher[L"logged"] = new JSONValue(v.logged);
+					watcher[L"monitor"] = new JSONValue(int((~kMonitorChange) & v.monitoring));
 					watcher[L"logFileName"] = new JSONValue(JSON::s2ws(v.logFileName));
 					watcher[L"value"] = new JSONValue(v.w->wmGet());
 					watcher[L"type"] = new JSONValue(JSON::s2ws(v.type));
@@ -374,7 +410,7 @@ private:
 				JSONValue value(root);
 				gui.sendControl(&value, WSServer::kThreadCallback);
 			}
-			if("watch" == cmd || "unwatch" == cmd || "control" == cmd || "uncontrol" == cmd || "log" == cmd || "unlog" == cmd) {
+			if("watch" == cmd || "unwatch" == cmd || "control" == cmd || "uncontrol" == cmd || "log" == cmd || "unlog" == cmd || "monitor" == cmd) {
 				const JSONArray& watchers = JSONGetArray(el, "watchers");
 				for(size_t n = 0; n < watchers.size(); ++n)
 				{
@@ -395,6 +431,11 @@ private:
 							startLogging(p);
 						else if("unlog" == cmd)
 							stopLogging(p);
+						else if ("monitor" == cmd) {
+							const JSONArray& periods = JSONGetArray(el, "periods");
+							size_t period = JSONGetAsNumber(periods[n]);
+							setMonitoring(p, period);
+						}
 					}
 				}
 				printf("\n");
