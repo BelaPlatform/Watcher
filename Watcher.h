@@ -89,6 +89,9 @@ static inline double JSONGetNumber(JSONValue* el, size_t key)
 	return _JSONGetNumber(el, key);
 }
 
+// the below is deprecated because it's probably broken:
+// JSONValue will destroy arr (or its contents?) not sure, so test it  before use
+static inline double JSONGetNumber(const JSONArray& arr, size_t key) __attribute__ ((deprecated("Not actually deprecated, but probably broken. Needs testing")));
 static inline double JSONGetNumber(const JSONArray& arr, size_t key)
 {
 	JSONValue value(arr);
