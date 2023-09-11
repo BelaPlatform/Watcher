@@ -192,8 +192,7 @@ public:
 			{
 				p->monitoring &= ~kMonitorChange; // reset flag
 				if(p->monitoring) {
-					// throttle requests that are too fast
-					p->monitoring = std::max(p->monitoring, 500u);
+					// trigger to send one immediately
 					p->monitoringNext = timestamp;
 				} else
 					p->monitoringNext = -1;
@@ -208,7 +207,13 @@ public:
 				memcpy(data, &timestamp, kMsgHeaderLength);
 				memcpy(data + kMsgHeaderLength, &value, sizeof(value));
 				gui.sendBuffer(p->guiBufferId, (T*)data, sizeof(data) / sizeof(T));
-				p->monitoringNext = timestamp + p->monitoring;
+				if(1 == p->monitoring)
+				{
+					// special case: one-shot
+					// so disable at the next iteration
+					p->monitoring = kMonitorChange | 0;
+				} else
+					p->monitoringNext = timestamp + p->monitoring;
 			}
 		}
 		if(p->watched || kLoggedNo != p->logged)
