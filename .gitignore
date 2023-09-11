@@ -1,0 +1,4 @@
+watcher
+.*.sw?
+*.bin
+build
