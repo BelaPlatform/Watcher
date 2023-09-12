@@ -130,6 +130,10 @@ public:
 			return true;
 		});
 	};
+	void setup(float sampleRate)
+	{
+		this->sampleRate = sampleRate;
+	}
 	class Details;
 	enum TimestampMode {
 		kTimestampBlock,
@@ -410,6 +414,7 @@ private:
 				}
 				JSONObject watcher;
 				watcher[L"watchers"] = new JSONValue(watchers);
+				watcher[L"sampleRate"] = new JSONValue(float(sampleRate));
 				JSONObject root;
 				root[L"watcher"] = new JSONValue(watcher);
 				JSONValue value(root);
@@ -473,6 +478,7 @@ private:
 		return false;
 	}
 	std::vector<Priv*> vec;
+	float sampleRate = 0;
 	Gui& gui;
 };
 
