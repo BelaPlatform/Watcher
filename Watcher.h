@@ -417,6 +417,7 @@ private:
 			}
 			if("watch" == cmd || "unwatch" == cmd || "control" == cmd || "uncontrol" == cmd || "log" == cmd || "unlog" == cmd || "monitor" == cmd) {
 				const JSONArray& watchers = JSONGetArray(el, "watchers");
+				const JSONArray& periods = JSONGetArray(el, "periods"); // used only by 'monitor'
 				for(size_t n = 0; n < watchers.size(); ++n)
 				{
 					std::string str = JSONGetAsString(watchers[n]);
@@ -437,9 +438,14 @@ private:
 						else if("unlog" == cmd)
 							stopLogging(p);
 						else if ("monitor" == cmd) {
-							const JSONArray& periods = JSONGetArray(el, "periods");
-							size_t period = JSONGetAsNumber(periods[n]);
-							setMonitoring(p, period);
+							if(n < periods.size())
+							{
+								size_t period = JSONGetAsNumber(periods[n]);
+								setMonitoring(p, period);
+							} else {
+								fprintf(stderr, "monitor cmd with not enough elements in periods: %u instead of %u\n", periods.size(), watchers.size());
+								break;
+							}
 						}
 					}
 				}
