@@ -3,6 +3,8 @@
 #include <string>
 #include <new> // for std::bad_alloc
 #include <unistd.h>
+#include <atomic>
+#include <libraries/Pipe/Pipe.h>
 
 class WatcherManager;
 class WatcherBase {
@@ -112,6 +114,9 @@ class WatcherManager
 	typedef uint64_t AbsTimestamp;
 	typedef uint32_t RelTimestamp;
 	AbsTimestamp timestamp = 0;
+	size_t pipeReceivedRt = 0;
+	size_t pipeSentNonRt = 0;
+	Pipe pipe;
 	static constexpr size_t kMsgHeaderLength = sizeof(timestamp);
 	static_assert(0 == kMsgHeaderLength % sizeof(float), "has to be multiple");
 	static constexpr size_t kBufSize = 4096 + kMsgHeaderLength;
@@ -124,7 +129,8 @@ class WatcherManager
 		return offset;
 	}
 public:
-	WatcherManager(Gui& gui) : gui(gui) {
+	WatcherManager(Gui& gui) : pipe("watcherManager", 65536, true, true), gui(gui)
+	{
 		gui.setControlDataCallback([this](JSONObject& json, void*) {
 			this->controlCallback(json);
 			return true;
@@ -181,6 +187,28 @@ public:
 	void tick(AbsTimestamp frames)
 	{
 		timestamp = frames;
+		while(pipeReceivedRt != pipeSentNonRt)
+		{
+			Msg msg;
+			if(1 == pipe.readRt(msg))
+			{
+				pipeReceivedRt++;
+				switch(msg.cmd)
+				{
+					case Msg::kCmdStartLogging:
+						startLogging(msg.priv, msg.arg);
+						break;
+					case Msg::kCmdStopLogging:
+						stopLogging(msg.priv, msg.arg);
+						break;
+					case Msg::kCmdNone:
+						break;
+				}
+			} else {
+				rt_fprintf(stderr, "Error: missing messages in the pipe\n");
+				pipeReceivedRt = pipeSentNonRt;
+			}
+		}
 	}
 	// the relevant object is passed back here so that we don't have to waste
 	// time looking it up
@@ -305,6 +333,15 @@ private:
 		Logged logged;
 		bool hasLogged;
 	};
+	struct Msg {
+		Priv* priv;
+		enum Cmd {
+			kCmdNone,
+			kCmdStartLogging,
+			kCmdStopLogging,
+		} cmd;
+		uint64_t arg;
+	};
 	template <typename T>
 	void send(Priv* p) {
 		size_t size = p->v.size(); // TODO: customise this for smaller frames
@@ -338,13 +375,13 @@ private:
 		p->controlled = false;
 		p->w->localControl(true);
 	}
-	void startLogging(Priv* p) {
+	void startLogging(Priv* p, AbsTimestamp timestamp) {
 		if(kLoggedNo != p->logged)
 			return;
 		p->logged = kLoggedYes;
 		p->hasLogged = true;
 	}
-	void stopLogging(Priv* p) {
+	void stopLogging(Priv* p, AbsTimestamp timestamp) {
 		if(kLoggedNo == p->logged)
 			return;
 		p->logged = kLoggedStopping;
@@ -423,6 +460,8 @@ private:
 			if("watch" == cmd || "unwatch" == cmd || "control" == cmd || "uncontrol" == cmd || "log" == cmd || "unlog" == cmd || "monitor" == cmd) {
 				const JSONArray& watchers = JSONGetArray(el, "watchers");
 				const JSONArray& periods = JSONGetArray(el, "periods"); // used only by 'monitor'
+				const JSONArray& timestamps = JSONGetArray(el, "timestamps"); // used only by some commands
+				size_t numSent = 0;
 				for(size_t n = 0; n < watchers.size(); ++n)
 				{
 					std::string str = JSONGetAsString(watchers[n]);
@@ -430,6 +469,13 @@ private:
 					printf("%s {'%s', %p}, ", cmd.c_str(), str.c_str(), p);
 					if(p)
 					{
+						AbsTimestamp timestamp = 0;
+						Msg msg {
+							.priv = p,
+							.cmd = Msg::kCmdNone,
+						};
+						if(n < timestamps.size())
+							timestamp = JSONGetAsNumber(timestamps[n]);
 						if("watch" == cmd)
 							startWatching(p);
 						else if("unwatch" == cmd)
@@ -438,11 +484,13 @@ private:
 							startControlling(p);
 						else if("uncontrol" == cmd)
 							stopControlling(p);
-						else if("log" == cmd)
-							startLogging(p);
-						else if("unlog" == cmd)
-							stopLogging(p);
-						else if ("monitor" == cmd) {
+						else if("log" == cmd) {
+							msg.cmd = Msg::kCmdStartLogging;
+							msg.arg = timestamp;
+						} else if("unlog" == cmd) {
+							msg.cmd = Msg::kCmdStopLogging;
+							msg.arg = timestamp;
+						} else if ("monitor" == cmd) {
 							if(n < periods.size())
 							{
 								size_t period = JSONGetAsNumber(periods[n]);
@@ -452,9 +500,23 @@ private:
 								break;
 							}
 						}
+						if(Msg::kCmdNone != msg.cmd)
+						{
+							pipe.writeNonRt(msg);
+							numSent++;
+						}
 					}
 				}
 				printf("\n");
+				if(numSent)
+				{
+					// this full memory barrier may be
+					// unnecessary as the system calls in Pipe::writeRt()
+					// may be enough
+					// or it may be useless and still leave the problem unaddressed
+					std::atomic_thread_fence(std::memory_order_release);
+					pipeSentNonRt += numSent;
+				}
 			}
 			if("set" == cmd) {
 				const JSONArray& watchers = JSONGetArray(el, "watchers");
