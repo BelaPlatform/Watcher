@@ -520,6 +520,10 @@ private:
 							msg.arg = timestamp;
 							cleanupLogger(p);
 							setupLogger(p);
+							JSONObject watcher;
+							watcher[L"watcher"] = new JSONValue(JSON::s2ws(str));
+							watcher[L"logFileName"] = new JSONValue(JSON::s2ws(p->logFileName));
+							sendJsonResponse(new JSONValue(watcher));
 						} else if("unlog" == cmd) {
 							msg.cmd = Msg::kCmdStopLogging;
 							msg.arg = timestamp;
