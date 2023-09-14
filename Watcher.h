@@ -160,6 +160,7 @@ public:
 			.relTimestampsOffset = getRelTimestampsOffset(sizeof(T)),
 			.countRelTimestamps = 0,
 			.monitoring = kMonitorDont,
+			.logEventTimestamp = -1u,
 			.watched = false,
 			.controlled = false,
 			.logged = kLoggedNo,
@@ -216,6 +217,14 @@ public:
 		Priv* p = reinterpret_cast<Priv*>(d);
 		if(!p)
 			return;
+		if(timestamp >= p->logEventTimestamp)
+		{
+			p->logEventTimestamp = -1;
+			if(kLoggedStarting == p->logged)
+				p->logged = kLoggedYes;
+			else if(kLoggedStopping == p->logged)
+				p->logged = kLoggedLast;
+		}
 		if(kMonitorDont != p->monitoring)
 		{
 			if(p->monitoring & kMonitorChange)
@@ -271,9 +280,9 @@ public:
 				// only one array of type T starting at
 				// kMsgHeaderLength
 			}
-			if(full || kLoggedStopping == p->logged)
+			if(full || kLoggedLast == p->logged)
 			{
-				if(kLoggedStopping == p->logged && !full)
+				if(kLoggedLast == p->logged && !full)
 				{
 					// when logging stops, we need to fill
 					// up all the remaining space with zeros
@@ -295,7 +304,7 @@ public:
 				// header
 
 				send<T>(p);
-				if(kLoggedStopping == p->logged)
+				if(kLoggedLast == p->logged)
 				{
 					p->logger->requestFlush();
 					p->logged = kLoggedNo;
@@ -307,8 +316,10 @@ public:
 private:
 	enum Logged {
 		kLoggedNo,
+		kLoggedStarting,
 		kLoggedYes,
 		kLoggedStopping,
+		kLoggedLast,
 	};
 	struct Priv {
 		WatcherBase* w;
@@ -325,7 +336,8 @@ private:
 		size_t countRelTimestamps;
 		size_t maxCount;
 		uint32_t monitoring;
-		uint64_t monitoringNext;
+		AbsTimestamp monitoringNext;
+		AbsTimestamp logEventTimestamp;
 		bool watched;
 		bool controlled;
 		Logged logged;
@@ -342,7 +354,7 @@ private:
 	};
 	bool isLogging(const Priv* p) const
 	{
-		return p->logger && (kLoggedNo != p->logged);
+		return p->logger && (kLoggedYes == p->logged || kLoggedStopping == p->logged || kLoggedLast == p->logged);
 	}
 	template <typename T>
 	void send(Priv* p) {
@@ -380,13 +392,15 @@ private:
 	void startLogging(Priv* p, AbsTimestamp timestamp) {
 		if(kLoggedNo != p->logged)
 			return;
-		p->logged = kLoggedYes;
+		p->logged = kLoggedStarting;
+		p->logEventTimestamp = timestamp;
 		p->hasLogged = true;
 	}
 	void stopLogging(Priv* p, AbsTimestamp timestamp) {
 		if(kLoggedNo == p->logged)
 			return;
 		p->logged = kLoggedStopping;
+		p->logEventTimestamp = timestamp;
 	}
 	void setMonitoring(Priv* p, size_t period) {
 		p->monitoring = (kMonitorChange | period);
