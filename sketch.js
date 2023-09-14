@@ -168,8 +168,10 @@ function updateWatcherList(data) {
 }
 
 let controlCallback = (data) => {
-	if(data.watcher.watchers)
+	if(data.watcher && data.watcher.watchers)
 		updateWatcherList(data.watcher);
+	else
+		console.log(data.watcher);
 }
 
 function setup() {
