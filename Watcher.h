@@ -246,7 +246,7 @@ public:
 					p->monitoringNext = timestamp + p->monitoring;
 			}
 		}
-		if(p->watched || kLoggedNo != p->logged)
+		if(p->watched || isLogging(p))
 		{
 			if(0 == p->count)
 			{
@@ -340,12 +340,16 @@ private:
 		} cmd;
 		uint64_t arg;
 	};
+	bool isLogging(const Priv* p) const
+	{
+		return p->logger && (kLoggedNo != p->logged);
+	}
 	template <typename T>
 	void send(Priv* p) {
 		size_t size = p->v.size(); // TODO: customise this for smaller frames
 		if(p->watched)
 			gui.sendBuffer(p->guiBufferId, (T*)p->v.data(), size / sizeof(T));
-		if((p->logged != kLoggedNo) && p->logger)
+		if(isLogging(p))
 			p->logger->log((float*)p->v.data(), size / sizeof(float));
 	}
 	void startWatching(Priv* p) {
