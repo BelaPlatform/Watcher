@@ -449,6 +449,14 @@ private:
 		else
 			return nullptr;
 	}
+	void sendJsonResponse(JSONValue* watcher)
+	{
+		// should be called from the controlCallback() thread
+		JSONObject root;
+		root[L"watcher"] = watcher;
+		JSONValue value(root);
+		gui.sendControl(&value, WSServer::kThreadCallback);
+	}
 	bool controlCallback(JSONObject& root) {
 		auto watcher = JSONGetArray(root, "watcher");
 		for(size_t n = 0; n < watcher.size(); ++n)
@@ -478,10 +486,7 @@ private:
 				JSONObject watcher;
 				watcher[L"watchers"] = new JSONValue(watchers);
 				watcher[L"sampleRate"] = new JSONValue(float(sampleRate));
-				JSONObject root;
-				root[L"watcher"] = new JSONValue(watcher);
-				JSONValue value(root);
-				gui.sendControl(&value, WSServer::kThreadCallback);
+				sendJsonResponse(new JSONValue(watcher));
 			}
 			if("watch" == cmd || "unwatch" == cmd || "control" == cmd || "uncontrol" == cmd || "log" == cmd || "unlog" == cmd || "monitor" == cmd) {
 				const JSONArray& watchers = JSONGetArray(el, "watchers");
