@@ -153,6 +153,7 @@ public:
 			.count = 0,
 			.name = name,
 			.guiBufferId = gui.setBuffer(*typeid(T).name(), kBufSize),
+			.logger = nullptr,
 			.type = typeid(T).name(),
 			.timestampMode = timestampMode,
 			.firstTimestamp = 0,
@@ -169,7 +170,6 @@ public:
 		if(((uintptr_t)p->v.data() + kMsgHeaderLength) & (sizeof(T) - 1))
 			throw(std::bad_alloc());
 		p->maxCount = kTimestampBlock == p->timestampMode ? p->v.size() : p->relTimestampsOffset - (sizeof(T) - 1);
-		setupLogger(p);
 		return (Details*)vec.back();
 	}
 	void unreg(WatcherBase* that)
@@ -177,9 +177,7 @@ public:
 		auto it = std::find_if(vec.begin(), vec.end(), [that](decltype(vec[0])& item){
 			return item->w == that;
 		});
-		bool shouldDiscard = !(*it)->hasLogged;
-		(*it)->logger->cleanup(shouldDiscard);
-		delete (*it)->logger;
+		cleanupLogger(*it);
 		// TODO: unregister from GUI
 		delete *it;
 		vec.erase(it);
@@ -390,6 +388,7 @@ private:
 		p->monitoring = (kMonitorChange | period);
 	}
 	void setupLogger(Priv* p) {
+		delete p->logger;
 		p->logger = new WriteFile((p->name + ".bin").c_str(), false, false);
 		p->logger->setFileType(kBinary);
 		p->logFileName = p->logger->getName();
@@ -412,6 +411,15 @@ private:
 			header.push_back(((uint8_t*)&ptr)[n]);
 		header.resize(((header.size() + 3) / 4) * 4); // round to nearest multiple of 4
 		p->logger->log((float*)(header.data()), header.size() / sizeof(float));
+	}
+
+	void cleanupLogger(Priv* p) {
+		if(!p || !p->logger)
+			return;
+		bool shouldDiscard = !p->hasLogged;
+		p->logger->cleanup(shouldDiscard);
+		delete p->logger;
+		p->logger = nullptr;
 	}
 
 	Priv* findPrivByName(const std::string& str) {
@@ -487,6 +495,8 @@ private:
 						else if("log" == cmd) {
 							msg.cmd = Msg::kCmdStartLogging;
 							msg.arg = timestamp;
+							cleanupLogger(p);
+							setupLogger(p);
 						} else if("unlog" == cmd) {
 							msg.cmd = Msg::kCmdStopLogging;
 							msg.arg = timestamp;
