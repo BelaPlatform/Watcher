@@ -221,7 +221,13 @@ public:
 		{
 			p->logEventTimestamp = -1;
 			if(kLoggedStarting == p->logged)
+			{
 				p->logged = kLoggedYes;
+				// TODO: watching and logging use the same buffer,
+				// so you'll get a dropout in the watching if you
+				// are watching right now
+				p->count = 0;
+			}
 			else if(kLoggedStopping == p->logged)
 				p->logged = kLoggedLast;
 		}
