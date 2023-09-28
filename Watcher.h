@@ -492,6 +492,7 @@ private:
 				JSONObject watcher;
 				watcher[L"watchers"] = new JSONValue(watchers);
 				watcher[L"sampleRate"] = new JSONValue(float(sampleRate));
+				watcher[L"timestamp"] = new JSONValue(double(timestamp));
 				sendJsonResponse(new JSONValue(watcher));
 			}
 			if("watch" == cmd || "unwatch" == cmd || "control" == cmd || "uncontrol" == cmd || "log" == cmd || "unlog" == cmd || "monitor" == cmd) {
