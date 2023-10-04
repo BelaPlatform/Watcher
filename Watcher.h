@@ -18,6 +18,7 @@ public:
 	}
 	virtual double wmGet() = 0;
 	virtual void wmSet(double) = 0;
+	virtual void wmSetMask(unsigned int, unsigned int) = 0;
 	virtual void localControlChanged() {}
 protected:
 	bool localControlEnabled = true;
@@ -564,9 +565,10 @@ private:
 					pipeSentNonRt += numSent;
 				}
 			}
-			if("set" == cmd) {
+			if("set" == cmd || "setMask" == cmd) {
 				const JSONArray& watchers = JSONGetArray(el, "watchers");
 				const JSONArray& values = JSONGetArray(el, "values");
+				const JSONArray& masks = JSONGetArray(el, "masks");
 				if(watchers.size() != values.size()) {
 					fprintf(stderr, "set: incompatible size of watchers and values\n");
 					return false;
@@ -578,7 +580,14 @@ private:
 					Priv* p = findPrivByName(name);
 					if(p)
 					{
-						p->w->wmSet(val);
+						if("set" == cmd)
+							p->w->wmSet(val);
+						else if("setMask" == cmd) {
+							if(n > masks.size())
+								break;
+							unsigned int mask = JSONGetAsNumber(masks[n]);
+							p->w->wmSetMask(val, mask);
+						}
 					}
 				}
 			}
@@ -630,6 +639,13 @@ public:
 	void wmSet(double value) override
 	{
 		vr = value;
+	}
+	// TODO: figure out how to provide  NOP alternative via enable_if for
+	// non-integer types
+	// template <typename = std::enable_if<std::is_integral<T>::value>>
+	void wmSetMask(unsigned int value, unsigned int mask) override
+	{
+		vr = ((unsigned int)vr & ~mask) | (value & mask);
 	}
 	// TODO: use template functions to cast to numerical types if T is numerical
 	void operator=(T value) {
