@@ -2,7 +2,7 @@ let controlsLeft = 10;
 let controlsTop = 40;
 let vSpace = 30;
 let nameHspace = 80;
-let hSpaces = [-nameHspace, 0, 40, 80, 130, 210, 230, 370, 460, 550];
+let hSpaces = [-nameHspace, 0, 40, 80, 130, 210, 290, 350, 470, 560, 650];
 let sampleRateDiv;
 
 function sendCommand(cmd) {
@@ -17,6 +17,7 @@ function requestWatcherList() {
 
 let watcherGuiUpdatingFromBackend = false;
 
+let masks = {};
 // `this` is the object that has changed
 function watcherControlSendToBela()
 {
@@ -35,7 +36,6 @@ function watcherControlSendToBela()
 		// number (NaN is not recognized as a number)
 		value = 0;
 	}
-	this.guiKey.name;
 	let obj = {
 		watchers: [this.guiKey.name],
 		// cmd and other members added below as necessary
@@ -61,13 +61,26 @@ function watcherControlSendToBela()
 				obj.cmd = "unlog";
 			break;
 		case "valueInput":
-			obj.cmd = "set";
 			obj.values = [value];
+			let mask = masks[this.guiKey];
+			if(mask) {
+				obj.cmd = "setMask";
+				obj.masks = [mask];
+			} else
+				obj.cmd = "set";
 			break;
+		case "maskInput":
+			masks[this.guiKey] = value;
+			// do not send
+			return;
 		case "monitorPeriod":
 			obj.cmd = "monitor";
 			obj.periods = [value];
 			break;
+		default:
+			console.log("unhandled property", this.guiKey.property);
+			// do not send
+			return;
 	}
 	console.log("Sending ", obj);
 	sendCommand(obj);
@@ -104,6 +117,7 @@ function addWatcherToList(watcher) {
 		controlled: createCheckbox("C", watcher.controlled),
 		logged: createCheckbox("L", watcher.logged),
 		valueInput: createInput(""),
+		maskInput: createInput(""),
 		valueType: createElement("div", watcher.type),
 		valueDisplay: createElement("div", watcher.value),
 		monitorPeriod: createInput("0"),
@@ -111,6 +125,7 @@ function addWatcherToList(watcher) {
 		monitorValue: createElement("div", "_"),
 	};
 	w.valueInput.elt.style = "width: 10ch";
+	w.maskInput.elt.style = "width: 10ch";
 	w.monitorPeriod.elt.style = "width: 10ch";
 	w.monitorPeriod.elt.value = watcher.monitor;
 	for(let i in w)
@@ -124,6 +139,7 @@ function removeWatcherFromList(watcher) {
 	wGuis[watcher].controlled.remove();
 	wGuis[watcher].logged.remove();
 	wGuis[watcher].valueInput.remove();
+	wGuis[watcher].maskInput.remove();
 	wGuis[watcher].valueType.remove();
 	wGuis[watcher].valueDisplay.remove();
 	wGuis[watcher].monitorPeriod.remove();
@@ -184,10 +200,12 @@ function setup() {
 	Bela.control.registerCallback("controlCallback", controlCallback, { val: 1, otherval: 2});
 	let top = controlsTop - 40;
 	createElement("div", "control<br>value").position(controlsLeft + nameHspace + hSpaces[4], top);
-	createElement("div", "list<br>value").position(controlsLeft + nameHspace + hSpaces[6], top);
-	createElement("div", "monitor<br>interval").position(controlsLeft + nameHspace + hSpaces[7], top);
-	createElement("div", "monitor<br>timestamp").position(controlsLeft + nameHspace + hSpaces[8], top);
-	createElement("div", "monitor<br>value").position(controlsLeft + nameHspace + hSpaces[9], top);
+	createElement("div", "control<br>mask").position(controlsLeft + nameHspace + hSpaces[5], top);
+	createElement("div", "type").position(controlsLeft + nameHspace + hSpaces[6], top);
+	createElement("div", "list<br>value").position(controlsLeft + nameHspace + hSpaces[7], top);
+	createElement("div", "monitor<br>interval").position(controlsLeft + nameHspace + hSpaces[8], top);
+	createElement("div", "monitor<br>timestamp").position(controlsLeft + nameHspace + hSpaces[9], top);
+	createElement("div", "monitor<br>value").position(controlsLeft + nameHspace + hSpaces[10], top);
 	sampleRateDiv = createElement("div", "").position(controlsLeft, top);
 }
 setInterval(requestWatcherList, 2000);
