@@ -17,6 +17,37 @@ function requestWatcherList() {
 
 let watcherGuiUpdatingFromBackend = false;
 
+function parseString(parent, value)
+{
+	// be lenient in parsing the string.
+	// remove whitespaces
+	value = value.trim();
+	let out;
+	let isHex = false;
+	if(0 == value.search(/^0[xX]/)) {
+		// if it starts with 0x, remove it (we will parse it as hex anyhow)
+		value = value.replace(/^0[Xx]/, '');
+		// now remove any separators you may have added for legibility
+		value = value.replace(/[^0-9a-fA-F]/g,'');
+		// and make it an actual hex if appropriate
+		value = "0x" + value;
+		out = parseInt(value);
+		isHex = true;
+	} else if(-1 == value.search(/\./)) {
+		// no decimal separator, assume integer
+		out = parseInt(value);
+	} else {
+		out = parseFloat(value);
+	}
+	parent.isHex = isHex;
+	return out;
+}
+
+function formatNumber(parent, value)
+{
+	return (parent.isHex ? "0x" : "") + value.toString(parent.isHex ? 16 : 10);
+}
+
 let masks = {};
 // `this` is the object that has changed
 function watcherControlSendToBela()
@@ -30,7 +61,7 @@ function watcherControlSendToBela()
 		value = this.parser(value);
 	else
 		if(typeof(value) === "string")
-			value = parseFloat(value);
+			value = parseString(this.guiKey.parent, value);
 	if(isNaN(value)) {
 		// this is required for the C++ parser to recognize is it as a
 		// number (NaN is not recognized as a number)
@@ -129,7 +160,7 @@ function addWatcherToList(watcher) {
 	w.monitorPeriod.elt.style = "width: 13ch";
 	w.monitorPeriod.elt.value = watcher.monitor;
 	for(let i in w)
-		watcherSenderInit(w[i], {name: watcher.name, property: i});
+		watcherSenderInit(w[i], {name: watcher.name, property: i, parent: w});
 	wGuis[watcher.name] = w;
 	watcherUpdateLayout();
 }
@@ -157,7 +188,7 @@ function updateWatcherGuis(w) {
 	wgui.logged.checked(w.logged);
 	wgui.logged.elt.title = w.logFileName;
 	wgui.valueType.elt.innerText = w.type;
-	wgui.valueDisplay.elt.innerText = w.value;
+	wgui.valueDisplay.elt.innerText = formatNumber(wgui, w.value);
 	watcherGuiUpdatingFromBackend = false;
 }
 
@@ -265,7 +296,7 @@ function draw() {
 			// "monitoring" message
 			let w = wGuis[keys[k]];
 			w.monitorTimestamp.elt.innerText = timestamp;
-			w.monitorValue.elt.innerText = buf[0];
+			w.monitorValue.elt.innerText = formatNumber(w, buf[0]);
 			continue;
 		}
 		if(!wGuis[keys[k]].watched.checked())
