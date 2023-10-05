@@ -2,7 +2,7 @@ let controlsLeft = 10;
 let controlsTop = 40;
 let vSpace = 30;
 let nameHspace = 80;
-let hSpaces = [-nameHspace, 0, 40, 80, 130, 210, 290, 350, 470, 560, 650];
+let hSpaces = [-nameHspace, 0, 40, 80, 130, 230, 340, 390, 490, 610, 690];
 let sampleRateDiv;
 
 function sendCommand(cmd) {
@@ -124,9 +124,9 @@ function addWatcherToList(watcher) {
 		monitorTimestamp: createElement("div", "_"),
 		monitorValue: createElement("div", "_"),
 	};
-	w.valueInput.elt.style = "width: 10ch";
-	w.maskInput.elt.style = "width: 10ch";
-	w.monitorPeriod.elt.style = "width: 10ch";
+	w.valueInput.elt.style = "width: 13ch";
+	w.maskInput.elt.style = "width: 13ch";
+	w.monitorPeriod.elt.style = "width: 13ch";
 	w.monitorPeriod.elt.value = watcher.monitor;
 	for(let i in w)
 		watcherSenderInit(w[i], {name: watcher.name, property: i});
