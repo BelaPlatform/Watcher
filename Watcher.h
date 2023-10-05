@@ -20,6 +20,9 @@ public:
 	virtual void wmSet(double) = 0;
 	virtual void wmSetMask(unsigned int, unsigned int) = 0;
 	virtual void localControlChanged() {}
+	bool hasLocalControl() {
+		return localControlEnabled;
+	}
 protected:
 	bool localControlEnabled = true;
 };
@@ -624,7 +627,7 @@ public:
 		if(wm)
 			d = wm->reg<T>(this, name, timestampMode);
 	}
-	~Watcher() {
+	virtual ~Watcher() {
 		if(wm)
 			wm->unreg(this);
 	}
