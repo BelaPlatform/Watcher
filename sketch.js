@@ -119,6 +119,8 @@ function watcherControlSendToBela()
 
 function watcherSenderInit(obj, guiKey, parser)
 {
+	if(!obj)
+		return;
 	obj.guiKey = guiKey;
 	if("button" === obj.elt.localName)
 		obj.mouseReleased(sendToBela);
@@ -135,20 +137,22 @@ function watcherUpdateLayout() {
 		let w = wGuis[k];
 		let n = 0;
 		for(let o in w) {
-			w[o].position(controlsLeft + nameHspace + hSpaces[n], controlsTop + vSpace * i);
+			if(w[o])
+				w[o].position(controlsLeft + nameHspace + hSpaces[n], controlsTop + vSpace * i);
 			n++;
 		}
 		i++;
 	}
 }
 function addWatcherToList(watcher) {
+	let hasMask = watcher.type != 'd' && watcher.type != 'f';
 	let w = {
 		nameDisplay: createElement("div", watcher.name),
 		watched: createCheckbox("W", watcher.watched),
 		controlled: createCheckbox("C", watcher.controlled),
 		logged: createCheckbox("L", watcher.logged),
 		valueInput: createInput(""),
-		maskInput: createInput(""),
+		maskInput: hasMask ? createInput("") : undefined,
 		valueType: createElement("div", watcher.type),
 		valueDisplay: createElement("div", watcher.value),
 		monitorPeriod: createInput("0"),
@@ -156,7 +160,8 @@ function addWatcherToList(watcher) {
 		monitorValue: createElement("div", "_"),
 	};
 	w.valueInput.elt.style = "width: 13ch";
-	w.maskInput.elt.style = "width: 13ch";
+	if(hasMask)
+		w.maskInput.elt.style = "width: 13ch";
 	w.monitorPeriod.elt.style = "width: 13ch";
 	w.monitorPeriod.elt.value = watcher.monitor;
 	for(let i in w)
