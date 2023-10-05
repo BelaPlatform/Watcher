@@ -13,7 +13,7 @@ float gInverseSampleRate;
 bool setup(BelaContext *context, void *userData)
 {
 	Bela_getDefaultWatcherManager()->setup(context->audioSampleRate);
-	gui.setup(context->projectName);
+	Bela_getDefaultWatcherManager()->getGui().setup(context->projectName);
 	gInverseSampleRate = 1.0 / context->audioSampleRate;
 	gPhase = 0.0;
 	return true;
@@ -27,7 +27,7 @@ void render(BelaContext *context, void *userData)
 	{
 		rt_printf("%.5f %.5f\n\r", float(myvar), float(myvar2));
 		static int pastC = -1;
-		int c = gui.numConnections();
+		int c = Bela_getDefaultWatcherManager()->getGui().numConnections();
 		if(c != pastC)
 			rt_printf("connected %d\n", c);
 		pastC = c;

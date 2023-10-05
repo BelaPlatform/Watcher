@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vector>
 #include <typeinfo>
 #include <string>
@@ -323,6 +325,9 @@ public:
 			}
 		}
 	}
+	Gui& getGui() {
+		return gui;
+	}
 private:
 	enum Logged {
 		kLoggedNo,
@@ -602,14 +607,8 @@ private:
 	Gui& gui;
 };
 
-Gui gui;
-WatcherManager* Bela_getDefaultWatcherManager()
-{
-	static WatcherManager defaultWatcherManager(gui);
-	return &defaultWatcherManager;
-}
-
 WatcherManager* Bela_getDefaultWatcherManager();
+
 template <typename T>
 class Watcher : public WatcherBase {
     static_assert(
