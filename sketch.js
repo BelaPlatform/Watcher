@@ -208,6 +208,7 @@ function updateWatcherGuis(w, n) {
 }
 
 function updateWatcherList(data) {
+	setTimeout(requestWatcherList, 1234); // request a new one
 	sampleRateDiv.elt.innerText = data.sampleRate + "Hz";
 	let newList = data.watchers;
 	for(let n = 0; n < newList.length; ++n) {
@@ -254,7 +255,6 @@ function setup() {
 	createElement("div", "monitor<br>value").position(controlsLeft + nameHspace + hSpaces[10], top);
 	sampleRateDiv = createElement("div", "").position(controlsLeft, top);
 }
-setInterval(requestWatcherList, 2000);
 
 let pastBuffer;
 function draw() {
