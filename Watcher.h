@@ -673,7 +673,7 @@ public:
 	}
 protected:
 	T v {};
-	T vr;
+	T vr {};
 	WatcherManager* wm;
 	WatcherManager::Details* d;
 };
