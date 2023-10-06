@@ -1,3 +1,9 @@
+// when running with old version of the core GUI, the type property of
+// Bela.data.buffers[x] is not set in the backend. This flag is set at runtime
+// if we detect the need for it and enables a workaround
+let backwCompatibility = false;
+let backwTypes = Array();
+
 let controlsLeft = 10;
 let controlsTop = 40;
 let vSpace = 30;
@@ -184,7 +190,11 @@ function removeWatcherFromList(watcher) {
 	delete wGuis[watcher];
 }
 
-function updateWatcherGuis(w) {
+function updateWatcherGuis(w, n) {
+	if(backwCompatibility)
+	{
+		backwTypes[n] = w.type;
+	}
 	// avoid sending message to backend while we are updating
 	watcherGuiUpdatingFromBackend = true;
 	let wgui = wGuis[w.name];
@@ -204,7 +214,7 @@ function updateWatcherList(data) {
 		if(!(newList[n].name in wGuis)) {
 			addWatcherToList(newList[n]);
 		}
-		updateWatcherGuis(newList[n]);
+		updateWatcherGuis(newList[n], n);
 	}
 	for(let i in wGuis) {
 		let found = false;
@@ -264,6 +274,11 @@ function draw() {
 	{
 		let timestampBuf;
 		let type = Bela.data.buffers[k].type;
+		if(!type) {
+			// when running with old version of the core GUI, type has to be set elsewhere
+			backwCompatibility = true;
+			type = backwTypes[k];
+		}
 		let buf;
 		switch(type)
 		{
