@@ -421,7 +421,7 @@ private:
 		p->monitoring = (kMonitorChange | period);
 	}
 	void setupLogger(Priv* p) {
-		delete p->logger;
+		cleanupLogger(p);
 		p->logger = new WriteFile((p->name + ".bin").c_str(), false, false);
 		p->logger->setFileType(kBinary);
 		p->logFileName = p->logger->getName();
@@ -535,7 +535,6 @@ private:
 								continue;
 							msg.cmd = Msg::kCmdStartLogging;
 							msg.arg = timestamp;
-							cleanupLogger(p);
 							setupLogger(p);
 							JSONObject watcher;
 							watcher[L"watcher"] = new JSONValue(JSON::s2ws(str));
