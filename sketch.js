@@ -10,6 +10,7 @@ let vSpace = 30;
 let nameHspace = 80;
 let hSpaces = [-nameHspace, 0, 40, 80, 130, 230, 340, 390, 490, 610, 690];
 let sampleRateDiv;
+let latestTimestampDiv;
 
 function sendCommand(cmd) {
 	Bela.control.send({
@@ -92,8 +93,12 @@ function watcherControlSendToBela()
 				obj.cmd = "uncontrol";
 			break;
 		case "logged":
-			if(value)
+			if(value) {
 				obj.cmd = "log";
+				obj.timestamps = [ latestTimestamp + 2 * sampleRate ];
+				// can also pass timestampsEnd to stop at a scheduled time
+				// obj.timestampsEnd = [ latestTimestamp + 6 * sampleRate ];
+			}
 			else
 				obj.cmd = "unlog";
 			break;
@@ -207,9 +212,14 @@ function updateWatcherGuis(w, n) {
 	watcherGuiUpdatingFromBackend = false;
 }
 
+let latestTimestamp = 0;
+let sampleRate = 0;
 function updateWatcherList(data) {
 	setTimeout(requestWatcherList, 1234); // request a new one
-	sampleRateDiv.elt.innerText = data.sampleRate + "Hz";
+	latestTimestamp = data.timestamp;
+	sampleRate = data.sampleRate;
+	sampleRateDiv.elt.innerText = sampleRate + "Hz";
+	latestTimestampDiv.elt.innerText = latestTimestamp;
 	let newList = data.watchers;
 	for(let n = 0; n < newList.length; ++n) {
 		if(!(newList[n].name in wGuis)) {
@@ -254,6 +264,7 @@ function setup() {
 	createElement("div", "monitor<br>timestamp").position(controlsLeft + nameHspace + hSpaces[9], top);
 	createElement("div", "monitor<br>value").position(controlsLeft + nameHspace + hSpaces[10], top);
 	sampleRateDiv = createElement("div", "").position(controlsLeft, top);
+	latestTimestampDiv = createElement("div", "").position(controlsLeft + 100, top);
 }
 
 let pastBuffer;
