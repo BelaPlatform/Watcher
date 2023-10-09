@@ -478,7 +478,6 @@ private:
 		{
 			JSONValue* el = watcher[n];
 			std::string cmd = JSONGetString(el, "cmd");
-			printf("Command cmd: %s\n\r", cmd.c_str());
 			if("list" == cmd)
 			{
 				// send watcher list JSON
@@ -503,7 +502,7 @@ private:
 				watcher[L"sampleRate"] = new JSONValue(float(sampleRate));
 				watcher[L"timestamp"] = new JSONValue(double(timestamp));
 				sendJsonResponse(new JSONValue(watcher));
-			}
+			} else
 			if("watch" == cmd || "unwatch" == cmd || "control" == cmd || "uncontrol" == cmd || "log" == cmd || "unlog" == cmd || "monitor" == cmd) {
 				const JSONArray& watchers = JSONGetArray(el, "watchers");
 				const JSONArray& periods = JSONGetArray(el, "periods"); // used only by 'monitor'
@@ -572,7 +571,7 @@ private:
 					std::atomic_thread_fence(std::memory_order_release);
 					pipeSentNonRt += numSent;
 				}
-			}
+			} else
 			if("set" == cmd || "setMask" == cmd) {
 				const JSONArray& watchers = JSONGetArray(el, "watchers");
 				const JSONArray& values = JSONGetArray(el, "values");
@@ -598,7 +597,8 @@ private:
 						}
 					}
 				}
-			}
+			} else
+				printf("Unhandled command cmd: %s\n", cmd.c_str());
 		}
 		return false;
 	}
