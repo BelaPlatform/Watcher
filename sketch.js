@@ -55,7 +55,20 @@ function formatNumber(parent, value)
 	return (parent.isHex ? "0x" : "") + value.toString(parent.isHex ? 16 : 10);
 }
 
+document.addEventListener('visibilitychange', function() {
+	updateClientActive(!document.hidden)
+});
+
+let clientActive = null;
+function updateClientActive(active) {
+	if(active !== clientActive) {
+		clientActive = active;
+		let evt = clientActive ? "active" : "inactive";
+		Bela.control.send({event: evt});
+	}
+}
 let masks = {};
+
 // `this` is the object that has changed
 function watcherControlSendToBela()
 {
@@ -268,6 +281,7 @@ function setup() {
 }
 
 let pastBuffer;
+let clientActiveTimeout;
 function draw() {
 	//Read buffer with index 0 coming from render.cpp.
 	let p = this;
