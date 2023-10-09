@@ -27,10 +27,13 @@ void render(BelaContext *context, void *userData)
 	{
 		rt_printf("%.5f %.5f\n\r", float(myvar), float(myvar2));
 		static int pastC = -1;
+		static int pastAC = -1;
 		int c = Bela_getDefaultWatcherManager()->getGui().numConnections();
-		if(c != pastC)
-			rt_printf("connected %d\n", c);
+		int ac = Bela_getDefaultWatcherManager()->getGui().numActiveConnections();
+		if(c != pastC || ac != pastAC)
+			rt_printf("connected %d %d\n", c, ac);
 		pastC = c;
+		pastAC = ac;
 		count = 0;
 	}
 
