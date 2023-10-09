@@ -215,6 +215,7 @@ public:
 				pipeReceivedRt = pipeSentNonRt;
 			}
 		}
+		clientActive = gui.numActiveConnections();
 	}
 	// the relevant object is passed back here so that we don't have to waste
 	// time looking it up
@@ -257,14 +258,17 @@ public:
 			}
 			if(timestamp >= p->monitoringNext)
 			{
-				// big enough for the timestamp and one value
-				// and possibly some padding bytes at the end
-				// (though in practice there won't be any when
-				// sizeof(T) <= kMsgHeaderLength)
-				uint8_t data[((kMsgHeaderLength + sizeof(value) + sizeof(T) - 1) / sizeof(T)) * sizeof(T)];
-				memcpy(data, &timestamp, kMsgHeaderLength);
-				memcpy(data + kMsgHeaderLength, &value, sizeof(value));
-				gui.sendBuffer(p->guiBufferId, (T*)data, sizeof(data) / sizeof(T));
+				if(clientActive)
+				{
+					// big enough for the timestamp and one value
+					// and possibly some padding bytes at the end
+					// (though in practice there won't be any when
+					// sizeof(T) <= kMsgHeaderLength)
+					uint8_t data[((kMsgHeaderLength + sizeof(value) + sizeof(T) - 1) / sizeof(T)) * sizeof(T)];
+					memcpy(data, &timestamp, kMsgHeaderLength);
+					memcpy(data + kMsgHeaderLength, &value, sizeof(value));
+					gui.sendBuffer(p->guiBufferId, (T*)data, sizeof(data) / sizeof(T));
+				}
 				if(1 == p->monitoring)
 				{
 					// special case: one-shot
@@ -274,7 +278,7 @@ public:
 					p->monitoringNext = timestamp + p->monitoring;
 			}
 		}
-		if(p->watched || isLogging(p))
+		if((p->watched && clientActive) || isLogging(p))
 		{
 			if(0 == p->count)
 			{
@@ -382,7 +386,7 @@ private:
 	template <typename T>
 	void send(Priv* p) {
 		size_t size = p->v.size(); // TODO: customise this for smaller frames
-		if(p->watched)
+		if(clientActive && p->watched)
 			gui.sendBuffer(p->guiBufferId, (T*)p->v.data(), size / sizeof(T));
 		if(isLogging(p))
 			p->logger->log((float*)p->v.data(), size / sizeof(float));
@@ -620,6 +624,7 @@ private:
 	std::vector<Priv*> vec;
 	float sampleRate = 0;
 	Gui& gui;
+	bool clientActive = true;
 };
 
 WatcherManager* Bela_getDefaultWatcherManager();
