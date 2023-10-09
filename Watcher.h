@@ -647,7 +647,12 @@ public:
 	// template <typename = std::enable_if<std::is_integral<T>::value>>
 	void wmSetMask(unsigned int value, unsigned int mask) override
 	{
+		this->mask = mask;
 		vr = ((unsigned int)vr & ~mask) | (value & mask);
+	}
+	unsigned int getMask()
+	{
+		return this->mask;
 	}
 	// TODO: use template functions to cast to numerical types if T is numerical
 	void operator=(T value) {
@@ -676,5 +681,6 @@ protected:
 	T vr {};
 	WatcherManager* wm;
 	WatcherManager::Details* d;
+	unsigned int mask;
 };
 
