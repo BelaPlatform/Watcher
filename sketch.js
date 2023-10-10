@@ -109,8 +109,8 @@ function watcherControlSendToBela()
 			if(value) {
 				obj.cmd = "log";
 				obj.timestamps = [ latestTimestamp + 2 * sampleRate ];
-				// can also pass timestampsEnd to stop at a scheduled time
-				// obj.timestampsEnd = [ latestTimestamp + 6 * sampleRate ];
+				// can also pass durations to stop at a scheduled time
+				// obj.durations = [ 6 * sampleRate ];
 			}
 			else
 				obj.cmd = "unlog";
