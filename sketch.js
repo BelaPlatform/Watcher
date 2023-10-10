@@ -94,9 +94,10 @@ function watcherControlSendToBela()
 	switch(this.guiKey.property)
 	{
 		case "watched":
-			if(value)
+			if(value) {
 				obj.cmd = "watch";
-			else
+				this.lastStartedWatching = performance.now();
+			} else
 				obj.cmd = "unwatch";
 			break;
 		case "controlled":
@@ -298,7 +299,7 @@ function draw() {
 	for(let k in buffers)
 	{
 		let timestampBuf;
-		let type = Bela.data.buffers[k].type;
+		let type = buffers[k].type;
 		if(!type) {
 			// when running with old version of the core GUI, type has to be set elsewhere
 			backwCompatibility = true;
@@ -344,11 +345,21 @@ function draw() {
 			w.monitorValue.elt.innerText = formatNumber(w, buf[0]);
 			continue;
 		}
-		if(!wGuis[keys[k]].watched.checked())
+		let obj = wGuis[keys[k]].watched;
+		let bts = buffers[k].ts;
+		let now = performance.now();
+		// early return if the buffer has not been update since last set to watch
+		// or if the last update is too old
+		if(bts < obj.lastStartedWatching || now - 2000 > bts)
 			continue;
+		// fade out as it gets old
+		let alpha = 1 - (now - 1000 - bts) / 1000;
+		alpha *= 255; // effectively clipped to 255 by color()
+		if(alpha < 0)
+			alpha = 0;
 		p.noFill();
 		var rem = k % 3;
-		p.stroke(p.color(255 * (0 == rem), 255 * (1 == rem), 255 * (2 == rem)));
+		p.stroke(p.color(255 * (0 == rem), 255 * (1 == rem), 255 * (2 == rem), alpha));
 		p.beginShape();
 		for (let i = 0; i < buf.length; i++) {
 			var y;

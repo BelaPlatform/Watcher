@@ -166,12 +166,7 @@ public:
 			.relTimestampsOffset = getRelTimestampsOffset(sizeof(T)),
 			.countRelTimestamps = 0,
 			.monitoring = kMonitorDont,
-			.logEventTimestamp = -1u,
-			.logEventTimestampEnd = -1u,
-			.watched = false,
 			.controlled = false,
-			.logged = kLoggedNo,
-			.hasLogged = false,
 		});
 		Priv* p = vec.back();
 		p->v.resize(kBufSize); // how do we include this above?
@@ -207,6 +202,12 @@ public:
 					case Msg::kCmdStopLogging:
 						stopLogging(msg.priv, msg.args[0]);
 						break;
+					case Msg::kCmdStartWatching:
+						startWatching(msg.priv, msg.args[0], msg.args[1]);
+						break;
+					case Msg::kCmdStopWatching:
+						stopWatching(msg.priv, msg.args[0]);
+						break;
 					case Msg::kCmdNone:
 						break;
 				}
@@ -225,25 +226,32 @@ public:
 		Priv* p = reinterpret_cast<Priv*>(d);
 		if(!p)
 			return;
-		if(timestamp >= p->logEventTimestamp)
+		bool streamLast = false;
+		for(auto& stream : p->streams)
 		{
-			p->logEventTimestamp = -1;
-			if(kLoggedStarting == p->logged)
+		if(timestamp >= stream.schedTsStart)
+		{
+			stream.schedTsStart = -1;
+			if(kStreamStateStarting == stream.state)
 			{
-				p->logged = kLoggedYes;
+				stream.state = kStreamStateYes;
 				// TODO: watching and logging use the same buffer,
 				// so you'll get a dropout in the watching if you
 				// are watching right now
 				p->count = 0;
-				if(-1 != p->logEventTimestampEnd) {
+				if(-1 != stream.schedTsEnd) {
 					// if an end timestamp is provided,
 					// schedule the end immediately
-					p->logEventTimestamp = p->logEventTimestampEnd;
-					p->logged = kLoggedStopping;
+					stream.schedTsStart = stream.schedTsEnd;
+					stream.state = kStreamStateStopping;
 				}
 			}
-			else if(kLoggedStopping == p->logged)
-				p->logged = kLoggedLast;
+			else if(kStreamStateStopping == stream.state)
+			{
+				stream.state = kStreamStateLast;
+				streamLast = true;
+			}
+		}
 		}
 		if(kMonitorDont != p->monitoring)
 		{
@@ -278,7 +286,7 @@ public:
 					p->monitoringNext = timestamp + p->monitoring;
 			}
 		}
-		if((p->watched && clientActive) || isLogging(p))
+		if((isStreaming(p, kStreamIdxWatch) && clientActive) || isStreaming(p, kStreamIdxLog))
 		{
 			if(0 == p->count)
 			{
@@ -303,9 +311,9 @@ public:
 				// only one array of type T starting at
 				// kMsgHeaderLength
 			}
-			if(full || kLoggedLast == p->logged)
+			if(full || streamLast)
 			{
-				if(kLoggedLast == p->logged && !full)
+				if(!full)
 				{
 					// when logging stops, we need to fill
 					// up all the remaining space with zeros
@@ -327,10 +335,15 @@ public:
 				// header
 
 				send<T>(p);
-				if(kLoggedLast == p->logged)
+				for(size_t n = 0; n < p->streams.size(); ++n)
 				{
-					p->logger->requestFlush();
-					p->logged = kLoggedNo;
+					Stream& stream = p->streams[n];
+					if(kStreamStateLast == stream.state)
+					{
+						if(kStreamIdxLog == n)
+							p->logger->requestFlush();
+						stream.state = kStreamStateNo;
+					}
 				}
 				p->count = 0;
 			}
@@ -340,12 +353,22 @@ public:
 		return gui;
 	}
 private:
-	enum Logged {
-		kLoggedNo,
-		kLoggedStarting,
-		kLoggedYes,
-		kLoggedStopping,
-		kLoggedLast,
+	enum StreamIdx {
+		kStreamIdxLog,
+		kStreamIdxWatch,
+		kStreamIdxNum,
+	};
+	enum StreamState {
+		kStreamStateNo,
+		kStreamStateStarting,
+		kStreamStateYes,
+		kStreamStateStopping,
+		kStreamStateLast,
+	};
+	struct Stream {
+		AbsTimestamp schedTsStart = -1;
+		AbsTimestamp schedTsEnd = -1;
+		StreamState state = kStreamStateNo;
 	};
 	struct Priv {
 		WatcherBase* w;
@@ -363,12 +386,8 @@ private:
 		size_t maxCount;
 		uint32_t monitoring;
 		AbsTimestamp monitoringNext;
-		AbsTimestamp logEventTimestamp;
-		AbsTimestamp logEventTimestampEnd;
-		bool watched;
+		std::array<Stream,kStreamIdxNum> streams;
 		bool controlled;
-		Logged logged;
-		bool hasLogged;
 	};
 	struct Msg {
 		Priv* priv;
@@ -376,32 +395,30 @@ private:
 			kCmdNone,
 			kCmdStartLogging,
 			kCmdStopLogging,
+			kCmdStartWatching,
+			kCmdStopWatching,
 		} cmd;
 		uint64_t args[2];
 	};
-	bool isLogging(const Priv* p) const
+	bool isStreaming(const Priv* p, StreamIdx idx) const
 	{
-		return p->logger && (kLoggedYes == p->logged || kLoggedStopping == p->logged || kLoggedLast == p->logged);
+		StreamState state = p->streams[idx].state;
+		return kStreamStateYes == state || kStreamStateStopping == state|| kStreamStateLast == state;
 	}
 	template <typename T>
 	void send(Priv* p) {
 		size_t size = p->v.size(); // TODO: customise this for smaller frames
-		if(clientActive && p->watched)
+		if(clientActive && isStreaming(p, kStreamIdxWatch))
 			gui.sendBuffer(p->guiBufferId, (T*)p->v.data(), size / sizeof(T));
-		if(isLogging(p))
+		if(isStreaming(p, kStreamIdxLog))
 			p->logger->log((float*)p->v.data(), size / sizeof(float));
 	}
-	void startWatching(Priv* p) {
-		if(p->watched)
-			return;
-		p->watched = true;
-		p->count = 0;
+	void startWatching(Priv* p, AbsTimestamp startTimestamp, AbsTimestamp duration) {
+		startStreamAtFor(p, kStreamIdxWatch, startTimestamp, duration);
 		// TODO: register guiBufferId here
 	}
-	void stopWatching(Priv* p) {
-		if(!p->watched)
-			return;
-		p->watched = false;
+	void stopWatching(Priv* p, AbsTimestamp timestampEnd) {
+		stopStreamAt(p, kStreamIdxWatch, timestampEnd);
 		// TODO: unregister guiBufferId here
 	}
 	void startControlling(Priv* p) {
@@ -416,24 +433,31 @@ private:
 		p->controlled = false;
 		p->w->localControl(true);
 	}
-	void startLogging(Priv* p, AbsTimestamp startTimestamp, AbsTimestamp duration) {
-		if(kLoggedNo != p->logged)
+	void startStreamAtFor(Priv* p, StreamIdx idx, AbsTimestamp startTimestamp, AbsTimestamp duration) {
+		Stream& stream = p->streams[idx];
+		if(kStreamStateNo != stream.state)
 			return;
-		p->logged = kLoggedStarting;
+		stream.state = kStreamStateStarting;
 		if(startTimestamp < timestamp)
 			startTimestamp = timestamp;
-		p->logEventTimestamp = startTimestamp;
+		stream.schedTsStart = startTimestamp;
 		AbsTimestamp timestampEnd = startTimestamp + duration;
 		if(0 == duration)
 			timestampEnd = -1; // do not stop automatically
-		p->logEventTimestampEnd = timestampEnd;
-		p->hasLogged = true;
+		stream.schedTsEnd = timestampEnd;
+	}
+	void stopStreamAt(Priv* p, StreamIdx idx, AbsTimestamp timestampEnd) {
+		Stream& stream = p->streams[idx];
+		if(kStreamStateNo == stream.state)
+			return;
+		stream.state = kStreamStateStopping;
+		stream.schedTsStart = timestampEnd;
+	}
+	void startLogging(Priv* p, AbsTimestamp startTimestamp, AbsTimestamp duration) {
+		startStreamAtFor(p, kStreamIdxLog, startTimestamp, duration);
 	}
 	void stopLogging(Priv* p, AbsTimestamp timestamp) {
-		if(kLoggedNo == p->logged)
-			return;
-		p->logged = kLoggedStopping;
-		p->logEventTimestamp = timestamp;
+		stopStreamAt(p, kStreamIdxLog, timestamp);
 	}
 	void setMonitoring(Priv* p, size_t period) {
 		p->monitoring = (kMonitorChange | period);
@@ -467,8 +491,7 @@ private:
 	void cleanupLogger(Priv* p) {
 		if(!p || !p->logger)
 			return;
-		bool shouldDiscard = !p->hasLogged;
-		p->logger->cleanup(shouldDiscard);
+		p->logger->cleanup(false);
 		delete p->logger;
 		p->logger = nullptr;
 	}
@@ -505,9 +528,9 @@ private:
 					auto& v = *item;
 					JSONObject watcher;
 					watcher[L"name"] = new JSONValue(JSON::s2ws(v.name));
-					watcher[L"watched"] = new JSONValue(v.watched);
+					watcher[L"watched"] = new JSONValue(isStreaming(&v, kStreamIdxWatch));
 					watcher[L"controlled"] = new JSONValue(v.controlled);
-					watcher[L"logged"] = new JSONValue(v.logged);
+					watcher[L"logged"] = new JSONValue(isStreaming(&v, kStreamIdxLog));
 					watcher[L"monitor"] = new JSONValue(int((~kMonitorChange) & v.monitoring));
 					watcher[L"logFileName"] = new JSONValue(JSON::s2ws(v.logFileName));
 					watcher[L"value"] = new JSONValue(v.w->wmGet());
@@ -544,16 +567,20 @@ private:
 							timestamp = JSONGetAsNumber(timestamps[n]);
 						if(n < durations.size())
 							duration = JSONGetAsNumber(durations[n]);
-						if("watch" == cmd)
-							startWatching(p);
-						else if("unwatch" == cmd)
-							stopWatching(p);
+						if("watch" == cmd) {
+							msg.cmd = Msg::kCmdStartWatching;
+							msg.args[0] = timestamp;
+							msg.args[1] = duration;
+						} else if("unwatch" == cmd) {
+							msg.cmd = Msg::kCmdStopWatching;
+							msg.args[0] = timestamp;
+						}
 						else if("control" == cmd)
 							startControlling(p);
 						else if("uncontrol" == cmd)
 							stopControlling(p);
 						else if("log" == cmd) {
-							if(isLogging(p))
+							if(isStreaming(p, kStreamIdxLog))
 								continue;
 							msg.cmd = Msg::kCmdStartLogging;
 							msg.args[0] = timestamp;
