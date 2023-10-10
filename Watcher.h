@@ -190,25 +190,25 @@ public:
 		timestamp = frames;
 		while(pipeReceivedRt != pipeSentNonRt)
 		{
-			Msg msg;
+			MsgToRt msg;
 			if(1 == pipe.readRt(msg))
 			{
 				pipeReceivedRt++;
 				switch(msg.cmd)
 				{
-					case Msg::kCmdStartLogging:
+					case MsgToRt::kCmdStartLogging:
 						startLogging(msg.priv, msg.args[0], msg.args[1]);
 						break;
-					case Msg::kCmdStopLogging:
+					case MsgToRt::kCmdStopLogging:
 						stopLogging(msg.priv, msg.args[0]);
 						break;
-					case Msg::kCmdStartWatching:
+					case MsgToRt::kCmdStartWatching:
 						startWatching(msg.priv, msg.args[0], msg.args[1]);
 						break;
-					case Msg::kCmdStopWatching:
+					case MsgToRt::kCmdStopWatching:
 						stopWatching(msg.priv, msg.args[0]);
 						break;
-					case Msg::kCmdNone:
+					case MsgToRt::kCmdNone:
 						break;
 				}
 			} else {
@@ -389,7 +389,7 @@ private:
 		std::array<Stream,kStreamIdxNum> streams;
 		bool controlled;
 	};
-	struct Msg {
+	struct MsgToRt {
 		Priv* priv;
 		enum Cmd {
 			kCmdNone,
@@ -559,20 +559,20 @@ private:
 					{
 						AbsTimestamp timestamp = 0;
 						AbsTimestamp duration = 0;
-						Msg msg {
+						MsgToRt msg {
 							.priv = p,
-							.cmd = Msg::kCmdNone,
+							.cmd = MsgToRt::kCmdNone,
 						};
 						if(n < timestamps.size())
 							timestamp = JSONGetAsNumber(timestamps[n]);
 						if(n < durations.size())
 							duration = JSONGetAsNumber(durations[n]);
 						if("watch" == cmd) {
-							msg.cmd = Msg::kCmdStartWatching;
+							msg.cmd = MsgToRt::kCmdStartWatching;
 							msg.args[0] = timestamp;
 							msg.args[1] = duration;
 						} else if("unwatch" == cmd) {
-							msg.cmd = Msg::kCmdStopWatching;
+							msg.cmd = MsgToRt::kCmdStopWatching;
 							msg.args[0] = timestamp;
 						}
 						else if("control" == cmd)
@@ -582,7 +582,7 @@ private:
 						else if("log" == cmd) {
 							if(isStreaming(p, kStreamIdxLog))
 								continue;
-							msg.cmd = Msg::kCmdStartLogging;
+							msg.cmd = MsgToRt::kCmdStartLogging;
 							msg.args[0] = timestamp;
 							msg.args[1] = duration;
 							setupLogger(p);
@@ -591,7 +591,7 @@ private:
 							watcher[L"logFileName"] = new JSONValue(JSON::s2ws(p->logFileName));
 							sendJsonResponse(new JSONValue(watcher));
 						} else if("unlog" == cmd) {
-							msg.cmd = Msg::kCmdStopLogging;
+							msg.cmd = MsgToRt::kCmdStopLogging;
 							msg.args[0] = timestamp;
 						} else if ("monitor" == cmd) {
 							if(n < periods.size())
@@ -603,7 +603,7 @@ private:
 								break;
 							}
 						}
-						if(Msg::kCmdNone != msg.cmd)
+						if(MsgToRt::kCmdNone != msg.cmd)
 						{
 							pipe.writeNonRt(msg);
 							numSent++;
