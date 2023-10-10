@@ -113,16 +113,19 @@ static inline double JSONGetNumber(JSONValue* el, const std::string& key)
 	return _JSONGetNumber(el, wkey);
 }
 
+#include <thread>
 class WatcherManager
 {
 	static constexpr uint32_t kMonitorDont = 0;
 	static constexpr uint32_t kMonitorChange = 1 << 31;
 	typedef uint64_t AbsTimestamp;
 	typedef uint32_t RelTimestamp;
+	std::thread pipeToJsonThread;
 	AbsTimestamp timestamp = 0;
 	size_t pipeReceivedRt = 0;
 	size_t pipeSentNonRt = 0;
 	Pipe pipe;
+	volatile bool shouldStop;
 	static constexpr size_t kMsgHeaderLength = sizeof(timestamp);
 	static_assert(0 == kMsgHeaderLength % sizeof(float), "has to be multiple");
 	static constexpr size_t kBufSize = 4096 + kMsgHeaderLength;
@@ -141,7 +144,15 @@ public:
 			this->controlCallback(json);
 			return true;
 		});
+		pipe.setTimeoutMsNonRt(100);
+		shouldStop = false;
+		pipeToJsonThread = std::thread(&WatcherManager::pipeToJson, this);
 	};
+	~WatcherManager()
+	{
+		shouldStop = true;
+		pipeToJsonThread.join();
+	}
 	void setup(float sampleRate)
 	{
 		this->sampleRate = sampleRate;
@@ -389,6 +400,14 @@ private:
 		std::array<Stream,kStreamIdxNum> streams;
 		bool controlled;
 	};
+	struct MsgToNrt {
+		Priv* priv;
+		enum Cmd {
+			kCmdNone,
+			kCmdStartedLogging,
+		} cmd;
+		uint64_t args[2];
+	};
 	struct MsgToRt {
 		Priv* priv;
 		enum Cmd {
@@ -400,6 +419,31 @@ private:
 		} cmd;
 		uint64_t args[2];
 	};
+	void pipeToJson()
+	{
+		while(!shouldStop)
+		{
+			struct MsgToNrt msg;
+			if(1 == pipe.readNonRt(msg))
+			{
+				switch(msg.cmd)
+				{
+					case MsgToNrt::kCmdStartedLogging:
+					{
+						JSONObject watcher;
+						watcher[L"watcher"] = new JSONValue(JSON::s2ws(msg.priv->name));
+						watcher[L"logFileName"] = new JSONValue(JSON::s2ws(msg.priv->logFileName));
+						watcher[L"timestamp"] = new JSONValue(double(msg.args[0]));
+						watcher[L"timestampEnd"] = new JSONValue(double(msg.args[1]));
+						sendJsonResponse(new JSONValue(watcher), WSServer::kThreadOther);
+					}
+						break;
+					case MsgToNrt::kCmdNone:
+						break;
+				}
+			}
+		}
+	}
 	bool isStreaming(const Priv* p, StreamIdx idx) const
 	{
 		StreamState state = p->streams[idx].state;
@@ -445,6 +489,18 @@ private:
 		if(0 == duration)
 			timestampEnd = -1; // do not stop automatically
 		stream.schedTsEnd = timestampEnd;
+		if(kStreamIdxLog == idx) {
+			// send a response with the actual timestamps
+			MsgToNrt msg {
+				.priv = p,
+				.cmd = MsgToNrt::kCmdStartedLogging,
+				.args = {
+					startTimestamp,
+					timestampEnd,
+				},
+			};
+			pipe.writeRt(msg);
+		}
 	}
 	void stopStreamAt(Priv* p, StreamIdx idx, AbsTimestamp timestampEnd) {
 		Stream& stream = p->streams[idx];
@@ -505,13 +561,13 @@ private:
 		else
 			return nullptr;
 	}
-	void sendJsonResponse(JSONValue* watcher)
+	void sendJsonResponse(JSONValue* watcher, WSServer::CallingThread thread)
 	{
 		// should be called from the controlCallback() thread
 		JSONObject root;
 		root[L"watcher"] = watcher;
 		JSONValue value(root);
-		gui.sendControl(&value, WSServer::kThreadCallback);
+		gui.sendControl(&value, thread);
 	}
 	bool controlCallback(JSONObject& root) {
 		auto watcher = JSONGetArray(root, "watcher");
@@ -542,7 +598,7 @@ private:
 				watcher[L"watchers"] = new JSONValue(watchers);
 				watcher[L"sampleRate"] = new JSONValue(float(sampleRate));
 				watcher[L"timestamp"] = new JSONValue(double(timestamp));
-				sendJsonResponse(new JSONValue(watcher));
+				sendJsonResponse(new JSONValue(watcher), WSServer::kThreadCallback);
 			} else
 			if("watch" == cmd || "unwatch" == cmd || "control" == cmd || "uncontrol" == cmd || "log" == cmd || "unlog" == cmd || "monitor" == cmd) {
 				const JSONArray& watchers = JSONGetArray(el, "watchers");
@@ -586,10 +642,6 @@ private:
 							msg.args[0] = timestamp;
 							msg.args[1] = duration;
 							setupLogger(p);
-							JSONObject watcher;
-							watcher[L"watcher"] = new JSONValue(JSON::s2ws(str));
-							watcher[L"logFileName"] = new JSONValue(JSON::s2ws(p->logFileName));
-							sendJsonResponse(new JSONValue(watcher));
 						} else if("unlog" == cmd) {
 							msg.cmd = MsgToRt::kCmdStopLogging;
 							msg.args[0] = timestamp;
