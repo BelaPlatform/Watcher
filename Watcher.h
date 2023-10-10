@@ -416,13 +416,16 @@ private:
 		p->controlled = false;
 		p->w->localControl(true);
 	}
-	void startLogging(Priv* p, AbsTimestamp timestamp, AbsTimestamp timestampEnd) {
+	void startLogging(Priv* p, AbsTimestamp startTimestamp, AbsTimestamp duration) {
 		if(kLoggedNo != p->logged)
 			return;
 		p->logged = kLoggedStarting;
-		p->logEventTimestamp = timestamp;
-		if(timestampEnd <= timestamp)
-			timestampEnd = -1; // invalid
+		if(startTimestamp < timestamp)
+			startTimestamp = timestamp;
+		p->logEventTimestamp = startTimestamp;
+		AbsTimestamp timestampEnd = startTimestamp + duration;
+		if(0 == duration)
+			timestampEnd = -1; // do not stop automatically
 		p->logEventTimestampEnd = timestampEnd;
 		p->hasLogged = true;
 	}
@@ -522,7 +525,7 @@ private:
 				const JSONArray& watchers = JSONGetArray(el, "watchers");
 				const JSONArray& periods = JSONGetArray(el, "periods"); // used only by 'monitor'
 				const JSONArray& timestamps = JSONGetArray(el, "timestamps"); // used only by some commands
-				const JSONArray& timestampsEnd = JSONGetArray(el, "timestampsEnd"); // used only by some commands
+				const JSONArray& durations = JSONGetArray(el, "durations"); // used only by some commands
 				size_t numSent = 0;
 				for(size_t n = 0; n < watchers.size(); ++n)
 				{
@@ -532,15 +535,15 @@ private:
 					if(p)
 					{
 						AbsTimestamp timestamp = 0;
-						AbsTimestamp timestampEnd = -1;
+						AbsTimestamp duration = 0;
 						Msg msg {
 							.priv = p,
 							.cmd = Msg::kCmdNone,
 						};
 						if(n < timestamps.size())
 							timestamp = JSONGetAsNumber(timestamps[n]);
-						if(n < timestampsEnd.size())
-							timestampEnd = JSONGetAsNumber(timestampsEnd[n]);
+						if(n < durations.size())
+							duration = JSONGetAsNumber(durations[n]);
 						if("watch" == cmd)
 							startWatching(p);
 						else if("unwatch" == cmd)
@@ -554,7 +557,7 @@ private:
 								continue;
 							msg.cmd = Msg::kCmdStartLogging;
 							msg.args[0] = timestamp;
-							msg.args[1] = timestampEnd;
+							msg.args[1] = duration;
 							setupLogger(p);
 							JSONObject watcher;
 							watcher[L"watcher"] = new JSONValue(JSON::s2ws(str));
