@@ -19,6 +19,7 @@ public:
 		}
 	}
 	virtual double wmGet() = 0;
+	virtual double wmGetInput() = 0;
 	virtual void wmSet(double) = 0;
 	virtual void wmSetMask(unsigned int, unsigned int) = 0;
 	virtual void localControlChanged() {}
@@ -590,6 +591,7 @@ private:
 					watcher[L"monitor"] = new JSONValue(int((~kMonitorChange) & v.monitoring));
 					watcher[L"logFileName"] = new JSONValue(JSON::s2ws(v.logFileName));
 					watcher[L"value"] = new JSONValue(v.w->wmGet());
+					watcher[L"valueInput"] = new JSONValue(v.w->wmGetInput());
 					watcher[L"type"] = new JSONValue(JSON::s2ws(v.type));
 					watcher[L"timestampMode"] = new JSONValue(v.timestampMode);
 					watchers.emplace_back(new JSONValue(watcher));
@@ -739,6 +741,9 @@ public:
 	double wmGet() override
 	{
 		return get();
+	}
+	double wmGetInput() override {
+		return v;
 	}
 	void wmSet(double value) override
 	{
