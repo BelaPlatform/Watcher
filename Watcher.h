@@ -241,29 +241,29 @@ public:
 		bool streamLast = false;
 		for(auto& stream : p->streams)
 		{
-		if(timestamp >= stream.schedTsStart)
-		{
-			stream.schedTsStart = -1;
-			if(kStreamStateStarting == stream.state)
+			if(timestamp >= stream.schedTsStart)
 			{
-				stream.state = kStreamStateYes;
-				// TODO: watching and logging use the same buffer,
-				// so you'll get a dropout in the watching if you
-				// are watching right now
-				p->count = 0;
-				if(-1 != stream.schedTsEnd) {
-					// if an end timestamp is provided,
-					// schedule the end immediately
-					stream.schedTsStart = stream.schedTsEnd;
-					stream.state = kStreamStateStopping;
+				stream.schedTsStart = -1;
+				if(kStreamStateStarting == stream.state)
+				{
+					stream.state = kStreamStateYes;
+					// TODO: watching and logging use the same buffer,
+					// so you'll get a dropout in the watching if you
+					// are watching right now
+					p->count = 0;
+					if(-1 != stream.schedTsEnd) {
+						// if an end timestamp is provided,
+						// schedule the end immediately
+						stream.schedTsStart = stream.schedTsEnd;
+						stream.state = kStreamStateStopping;
+					}
+				}
+				else if(kStreamStateStopping == stream.state)
+				{
+					stream.state = kStreamStateLast;
+					streamLast = true;
 				}
 			}
-			else if(kStreamStateStopping == stream.state)
-			{
-				stream.state = kStreamStateLast;
-				streamLast = true;
-			}
-		}
 		}
 		if(kMonitorDont != p->monitoring)
 		{
