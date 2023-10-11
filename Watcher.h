@@ -612,7 +612,9 @@ private:
 				{
 					std::string str = JSONGetAsString(watchers[n]);
 					Priv* p = findPrivByName(str);
+#ifdef WATCHER_PRINT
 					printf("%s {'%s', %p}, ", cmd.c_str(), str.c_str(), p);
+#endif // WATCHER_PRINT
 					if(p)
 					{
 						AbsTimestamp timestamp = 0;
@@ -664,7 +666,9 @@ private:
 						}
 					}
 				}
+#ifdef WATCHER_PRINT
 				printf("\n");
+#endif // WATCHER_PRINT
 				if(numSent)
 				{
 					// this full memory barrier may be
