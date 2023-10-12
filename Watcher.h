@@ -486,6 +486,7 @@ private:
 			p->logger->log((float*)p->v.data(), size / sizeof(float));
 	}
 	void startWatching(Priv* p, AbsTimestamp startTimestamp, AbsTimestamp duration) {
+		rt_printf("START %llu %llu\n", startTimestamp, duration);
 		startStreamAtFor(p, kStreamIdxWatch, startTimestamp, duration);
 		// TODO: register guiBufferId here
 	}
@@ -507,8 +508,6 @@ private:
 	}
 	void startStreamAtFor(Priv* p, StreamIdx idx, AbsTimestamp startTimestamp, AbsTimestamp duration) {
 		Stream& stream = p->streams[idx];
-		if(kStreamStateNo != stream.state)
-			return;
 		stream.state = kStreamStateStarting;
 		if(startTimestamp < timestamp)
 			startTimestamp = timestamp;
