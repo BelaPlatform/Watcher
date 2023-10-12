@@ -199,9 +199,11 @@ public:
 		delete *it;
 		vec.erase(it);
 	}
-	void tick(AbsTimestamp frames)
+	void tick(AbsTimestamp frames, bool full = true)
 	{
 		timestamp = frames;
+		if(!full)
+			return;
 		while(pipeReceivedRt != pipeSentNonRt)
 		{
 			MsgToRt msg;
