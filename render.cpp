@@ -39,7 +39,7 @@ void render(BelaContext *context, void *userData)
 
 	for(unsigned int n = 0; n < context->audioFrames; n++) {
 		uint64_t frames = context->audioFramesElapsed + n;
-		Bela_getDefaultWatcherManager()->tick(frames);
+		Bela_getDefaultWatcherManager()->tick(frames, 0 == n);
 		if(frames % 10 == 0) // log a dense variable sparsely: bad
 			myvar = frames;
 		myvar2 = frames; // log a dense variable densely: good
