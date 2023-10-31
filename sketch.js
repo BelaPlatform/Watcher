@@ -296,8 +296,10 @@ function draw() {
 	var linVerScale = 1;
 	var linVerOff = 0;
 	let keys = Object.keys(wGuis);
-	for(let k in buffers)
+	for(let k = 0; k < buffers.length; ++k)
 	{
+		if(keys.length < k) // haven't received a list yet
+			continue;
 		let timestampBuf;
 		let type = buffers[k].type;
 		if(!type) {
