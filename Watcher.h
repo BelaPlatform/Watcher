@@ -641,7 +641,7 @@ private:
 					std::string str = JSONGetAsString(watchers[n]);
 					Priv* p = findPrivByName(str);
 #ifdef WATCHER_PRINT
-					printf("%s {'%s', %p}, ", cmd.c_str(), str.c_str(), p);
+					printf("%s {'%s', %p, ", cmd.c_str(), str.c_str(), p);
 #endif // WATCHER_PRINT
 					if(p)
 					{
@@ -652,9 +652,19 @@ private:
 							.cmd = MsgToRt::kCmdNone,
 						};
 						if(n < timestamps.size())
+						{
 							timestamp = JSONGetAsNumber(timestamps[n]);
+#ifdef WATCHER_PRINT
+							printf("timestamp: %llu, ", timestamp);
+#endif // WATCHER_PRINT
+						}
 						if(n < durations.size())
+						{
 							duration = JSONGetAsNumber(durations[n]);
+#ifdef WATCHER_PRINT
+							printf("duration: %llu, ", duration);
+#endif // WATCHER_PRINT
+						}
 						if("watch" == cmd) {
 							msg.cmd = MsgToRt::kCmdStartWatching;
 							msg.args[0] = timestamp;
@@ -693,10 +703,10 @@ private:
 							numSent++;
 						}
 					}
-				}
 #ifdef WATCHER_PRINT
-				printf("\n");
+					printf("}\n");
 #endif // WATCHER_PRINT
+				}
 				if(numSent)
 				{
 					// this full memory barrier may be
