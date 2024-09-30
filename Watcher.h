@@ -140,7 +140,7 @@ class WatcherManager
 		return offset;
 	}
 public:
-	WatcherManager(Gui& gui) : pipe("watcherManager", 65536, true, true), gui(gui)
+	WatcherManager(Gui& gui) : pipe(std::string("watcherManager") + std::to_string((unsigned)this), 65536, true, true), gui(gui)
 	{
 		gui.setControlDataCallback([this](JSONObject& json, void*) {
 			this->controlCallback(json);
