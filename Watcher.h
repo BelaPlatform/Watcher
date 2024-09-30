@@ -756,7 +756,10 @@ class Watcher : public WatcherBase {
 	, "T is not of a supported type");
 public:
 	Watcher() = default;
-	Watcher(const std::string& name, WatcherManager::TimestampMode timestampMode = WatcherManager::kTimestampBlock, WatcherManager* wm = Bela_getDefaultWatcherManager()) :
+	Watcher(WatcherManager& wm) : Watcher("", WatcherManager::kTimestampBlock, &wm) {}
+	Watcher(const std::string& name, WatcherManager& wm) : Watcher(name, WatcherManager::kTimestampBlock, &wm) {}
+	Watcher(const std::string& name, WatcherManager::TimestampMode timestampMode = WatcherManager::kTimestampBlock, WatcherManager* wm = Bela_getDefaultWatcherManager())
+		:
 		wm(wm)
 	{
 		if(wm)
