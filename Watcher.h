@@ -743,7 +743,9 @@ private:
 	bool clientActive = true;
 };
 
+#ifndef WATCHER_DISABLE_DEFAULT
 WatcherManager* Bela_getDefaultWatcherManager();
+#endif // WATCHER_DISABLE_DEFAULT
 
 template <typename T>
 class Watcher : public WatcherBase {
@@ -758,7 +760,11 @@ public:
 	Watcher() = default;
 	Watcher(WatcherManager& wm) : Watcher("", WatcherManager::kTimestampBlock, &wm) {}
 	Watcher(const std::string& name, WatcherManager& wm) : Watcher(name, WatcherManager::kTimestampBlock, &wm) {}
+#ifdef WATCHER_DISABLE_DEFAULT
+	Watcher(const std::string& name, WatcherManager::TimestampMode timestampMode, WatcherManager* wm)
+#else
 	Watcher(const std::string& name, WatcherManager::TimestampMode timestampMode = WatcherManager::kTimestampBlock, WatcherManager* wm = Bela_getDefaultWatcherManager())
+#endif
 		:
 		wm(wm)
 	{
