@@ -2,4 +2,4 @@ name=Watcher
 description=Watch variables transparently from a front end
 examples=
 license=
-dependencies=
+dependencies=Gui
