@@ -1,5 +1,5 @@
 #include <Bela.h>
-#include <Watcher.h>
+#include "Watcher.h"
 
 WatcherManager* Bela_getDefaultWatcherManager()
 {
