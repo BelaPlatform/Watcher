@@ -165,8 +165,35 @@ public:
 		kTimestampSample,
 	};
 	template <typename T>
-	Details* reg(WatcherBase* that, const std::string& name, TimestampMode timestampMode)
+	Details* reg(WatcherBase* that, std::string name, TimestampMode timestampMode)
 	{
+		if("" == name)
+			name = "(anon)";
+		// sanitise
+		constexpr char kReserved = '~';
+		for(auto& c : name)
+		{
+			if(kReserved == c)
+				c = '_';
+		}
+		if(findPrivByName(name))
+		{
+			// name already exists, append number
+			name += kReserved;
+			unsigned int count = 1; // if it's the first instance, start from 1
+			for(ssize_t n = vec.size() - 1; n >= 0; --n)
+			{
+				std::string other = vec[n]->name;
+				if(other.size() <= name.size())
+					continue;
+				if(other.substr(0, name.size()) == other)
+				{
+					count = std::stoi(other.substr(name.size() + 1));
+					break;
+				}
+			}
+			name += std::to_string(count);
+		}
 		vec.emplace_back(new Priv{
 			.w = that,
 			.count = 0,
