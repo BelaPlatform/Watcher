@@ -165,7 +165,12 @@ public:
 		kTimestampSample,
 	};
 	template <typename T>
-	Details* reg(WatcherBase* that, std::string name, TimestampMode timestampMode)
+	Details* reg(WatcherBase* that, const std::string& name, TimestampMode timestampMode)
+	{
+		return doReg(that, name, timestampMode, typeid(T).name(), sizeof(T));
+	}
+private:
+	Details* doReg(WatcherBase* that, std::string name, TimestampMode timestampMode, const std::string& typeName, size_t typeSize)
 	{
 		if("" == name)
 			name = "(anon)";
@@ -198,24 +203,25 @@ public:
 			.w = that,
 			.count = 0,
 			.name = name,
-			.guiBufferId = gui.setBuffer(*typeid(T).name(), kBufSize),
+			.guiBufferId = gui.setBuffer(typeName[0], kBufSize),
 			.logger = nullptr,
-			.type = typeid(T).name(),
+			.type = typeName,
 			.timestampMode = timestampMode,
 			.firstTimestamp = 0,
-			.relTimestampsOffset = getRelTimestampsOffset(sizeof(T)),
+			.relTimestampsOffset = getRelTimestampsOffset(typeSize),
 			.countRelTimestamps = 0,
 			.monitoring = kMonitorDont,
 			.controlled = false,
 		});
 		Priv* p = vec.back();
 		p->v.resize(kBufSize); // how do we include this above?
-		if(((uintptr_t)p->v.data() + kMsgHeaderLength) & (sizeof(T) - 1))
+		if(((uintptr_t)p->v.data() + kMsgHeaderLength) & (typeSize - 1))
 			throw(std::bad_alloc());
-		p->maxCount = kTimestampBlock == p->timestampMode ? p->v.size() : p->relTimestampsOffset - (sizeof(T) - 1);
+		p->maxCount = kTimestampBlock == p->timestampMode ? p->v.size() : p->relTimestampsOffset - (typeSize - 1);
 		updateSometingToDo(p);
 		return (Details*)vec.back();
 	}
+public:
 	void unreg(WatcherBase* that)
 	{
 		auto it = std::find_if(vec.begin(), vec.end(), [that](decltype(vec[0])& item){
@@ -443,7 +449,7 @@ private:
 		unsigned int guiBufferId;
 		WriteFile* logger;
 		std::string logFileName;
-		const char* type;
+		std::string type;
 		TimestampMode timestampMode;
 		AbsTimestamp firstTimestamp;
 		size_t relTimestampsOffset;
