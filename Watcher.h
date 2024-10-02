@@ -758,18 +758,23 @@ class Watcher : public WatcherBase {
 	, "T is not of a supported type");
 public:
 	Watcher() = default;
-	Watcher(WatcherManager& wm) : Watcher("", WatcherManager::kTimestampBlock, &wm) {}
-	Watcher(const std::string& name, WatcherManager& wm) : Watcher(name, WatcherManager::kTimestampBlock, &wm) {}
+	Watcher(WatcherManager& wm, T value = 0) : Watcher("", WatcherManager::kTimestampBlock, &wm, value) {}
+	Watcher(const std::string& name, WatcherManager& wm, T value = 0) : Watcher(name, WatcherManager::kTimestampBlock, &wm, value) {}
+#ifndef WATCHER_DISABLE_DEFAULT
+	Watcher(T value = 0) : Watcher("", WatcherManager::kTimestampBlock, Bela_getDefaultWatcherManager(), value) {}
+	Watcher(const std::string& name, T value = 0) : Watcher(name, WatcherManager::kTimestampBlock, Bela_getDefaultWatcherManager(), value) {}
+#endif // ! WATCHER_DISABLE_DEFAULT
 #ifdef WATCHER_DISABLE_DEFAULT
-	Watcher(const std::string& name, WatcherManager::TimestampMode timestampMode, WatcherManager* wm)
+	Watcher(const std::string& name, WatcherManager::TimestampMode timestampMode, WatcherManager* wm, T value = 0)
 #else
-	Watcher(const std::string& name, WatcherManager::TimestampMode timestampMode = WatcherManager::kTimestampBlock, WatcherManager* wm = Bela_getDefaultWatcherManager())
+	Watcher(const std::string& name, WatcherManager::TimestampMode timestampMode = WatcherManager::kTimestampBlock, WatcherManager* wm = Bela_getDefaultWatcherManager(), T value = 0)
 #endif
 		:
 		wm(wm)
 	{
 		if(wm)
 			d = wm->reg<T>(this, name, timestampMode);
+		set(value);
 	}
 	virtual ~Watcher() {
 		if(wm)
