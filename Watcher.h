@@ -6,7 +6,7 @@
 #include <new> // for std::bad_alloc
 #include <unistd.h>
 #include <atomic>
-#include <libraries/Pipe/Pipe.h>
+#include <RtMsgFifo.h>
 #include <string.h>
 
 class WatcherManager;
@@ -48,7 +48,7 @@ class WatcherManager
 	AbsTimestamp timestamp = 0;
 	size_t pipeReceivedRt = 0;
 	size_t pipeSentNonRt = 0;
-	Pipe pipe;
+	RtNonRtMsgFifo pipe;
 	volatile bool shouldStop;
 	static constexpr size_t kMsgHeaderLength = sizeof(timestamp);
 	static_assert(0 == kMsgHeaderLength % sizeof(float), "has to be multiple");
